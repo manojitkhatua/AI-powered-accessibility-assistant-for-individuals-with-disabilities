@@ -4,6 +4,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.health import router as health_router
 from app.api.memory import router as memory_router
 
+from app.api.vision import router as vision_router
+
 
 app = FastAPI(
     title="AI-01 Accessibility Assistant API",
@@ -22,8 +24,8 @@ app.add_middleware(
 
 
 app.include_router(health_router)
-app.include_router(memory_router)
-
+app.include_router(memory_router) 
+app.include_router(vision_router)
 
 @app.get("/")
 async def root():
