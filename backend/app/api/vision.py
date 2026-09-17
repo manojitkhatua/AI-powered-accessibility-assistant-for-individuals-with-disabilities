@@ -3,6 +3,7 @@ from tempfile import NamedTemporaryFile
 
 from fastapi import APIRouter, File, UploadFile
 
+from app.services.spatial_service import spatial_service
 from app.services.vision_service import vision_service
 
 
@@ -21,8 +22,19 @@ async def detect_objects(file: UploadFile = File(...)):
         temp_path = temp_file.name
 
     try:
-        return {
-            "detections": vision_service.detect(temp_path)
-        }
+        detections = vision_service.detect(temp_path)
+
+        image_width = 3000
+
+        for detection in detections:
+            detection["horizontal"] = (
+                spatial_service.get_horizontal_position(
+                    detection["bbox"],
+                    image_width,
+                )
+            )
+
+        return {"detections": detections}
+
     finally:
         Path(temp_path).unlink(missing_ok=True)
