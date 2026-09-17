@@ -6,6 +6,7 @@ from app.api.memory import router as memory_router
 
 from app.api.vision import router as vision_router
 from app.api.voice import router as voice_router
+from app.api.assistant import router as assistant_router
 
 
 app = FastAPI(
@@ -25,9 +26,10 @@ app.add_middleware(
 
 
 app.include_router(health_router)
-app.include_router(memory_router) 
+app.include_router(memory_router)
 app.include_router(vision_router)
 app.include_router(voice_router)
+app.include_router(assistant_router)
 
 @app.get("/")
 async def root():
