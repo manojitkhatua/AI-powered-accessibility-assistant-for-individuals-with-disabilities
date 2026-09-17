@@ -1,11 +1,12 @@
 /**
  * VisionX — AI Accessibility Assistant
- * Landing Page & Choose Assistance Mode Implementation
+ * Landing Page, Assistance Mode Selector & Vision Assist Router
  */
 
 import { useState, useEffect } from 'react'
 import './App.css'
 import heroImg from './assets/hero.png'
+import VisionAssistPage from './pages/VisionAssistPage.jsx'
 
 /* ============================================================
    Logo — inline SVG wordmark (stable, no external URL)
@@ -65,7 +66,17 @@ function ThemeToggle({ theme, onToggle }) {
    Header / Navigation
    ============================================================ */
 function Header({ theme, onToggle, currentView, onNavigate }) {
-  const isAssistPage = currentView === 'choose-assist'
+  const isLanding = currentView === 'landing'
+  const isChooseAssist = currentView === 'choose-assist'
+  const isVisionAssist = currentView === 'vision-assist'
+
+  const handleBack = () => {
+    if (isVisionAssist) {
+      onNavigate('choose-assist')
+    } else if (isChooseAssist) {
+      onNavigate('landing')
+    }
+  }
 
   return (
     <header className="header" role="banner">
@@ -84,8 +95,8 @@ function Header({ theme, onToggle, currentView, onNavigate }) {
           <span className="header__logo-text">VisionX</span>
         </a>
 
-        {/* Desktop Nav on Landing */}
-        {!isAssistPage ? (
+        {/* Desktop Nav on Landing / Tag on other pages */}
+        {isLanding ? (
           <nav className="header__nav" aria-label="Main navigation">
             <a className="header__nav-link header__nav-link--active" href="#how-it-works" aria-current="page">
               How it works
@@ -98,21 +109,21 @@ function Header({ theme, onToggle, currentView, onNavigate }) {
             </a>
           </nav>
         ) : (
-          <div className="header__nav" aria-label="Current location">
+          <div className="header__nav" aria-label="Current page">
             <span className="tag" style={{ background: 'var(--surface-container-high)', color: 'var(--on-surface)' }}>
-              Assistance Mode Selection
+              {isVisionAssist ? 'Vision Assist' : 'Assistance Mode Selection'}
             </span>
           </div>
         )}
 
         {/* Actions */}
         <div className="header__actions">
-          {isAssistPage ? (
+          {!isLanding ? (
             <button
               type="button"
               className="btn btn--secondary header__back-btn"
-              onClick={() => onNavigate('landing')}
-              aria-label="Back to landing page"
+              onClick={handleBack}
+              aria-label={isVisionAssist ? 'Back to Choose Your Assist' : 'Back to Home'}
             >
               <span className="material-symbols-outlined" aria-hidden="true">arrow_back</span>
               <span>Back</span>
@@ -583,7 +594,51 @@ function AssistanceCard({
   )
 }
 
-function ChooseAssistPage({ selectedMode, onSelectMode }) {
+function ChooseAssistPage({ selectedMode, onSelectMode, onStartAssist }) {
+  const handleCardClick = (modeId) => {
+    onSelectMode(modeId)
+    if (modeId === 'vision' && onStartAssist) {
+      onStartAssist('vision')
+    }
+  }
+
+  // Quick-Launch Keyboard Shortcuts (1 -> Vision, 2 -> Hearing, 3 -> Hands-Free)
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // Ignore if user is inside an input, textarea, contenteditable, or select element
+      const activeElement = document.activeElement
+      const activeTag = activeElement ? activeElement.tagName.toLowerCase() : ''
+      const isEditable = activeElement ? activeElement.isContentEditable : false
+      if (
+        activeTag === 'input' ||
+        activeTag === 'textarea' ||
+        activeTag === 'select' ||
+        isEditable
+      ) {
+        return
+      }
+
+      // Do not interfere with browser modifier shortcuts (Ctrl, Meta, Alt)
+      if (e.ctrlKey || e.metaKey || e.altKey) {
+        return
+      }
+
+      if (e.key === '1') {
+        e.preventDefault()
+        handleCardClick('vision')
+      } else if (e.key === '2') {
+        e.preventDefault()
+        handleCardClick('hearing')
+      } else if (e.key === '3') {
+        e.preventDefault()
+        handleCardClick('handsfree')
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [onSelectMode, onStartAssist])
+
   return (
     <main className="main choose-assist" id="main-content">
       <div className="choose-assist__ambient" aria-hidden="true" />
@@ -607,9 +662,23 @@ function ChooseAssistPage({ selectedMode, onSelectMode }) {
               key={mode.id}
               {...mode}
               isSelected={selectedMode === mode.id}
-              onSelect={onSelectMode}
+              onSelect={handleCardClick}
             />
           ))}
+        </div>
+
+        {/* Quick-Launch Keyboard Hint */}
+        <div
+          className="choose-assist__keyboard-hint"
+          role="note"
+          aria-label="For Keyboard: Press 1, 2, or 3 to launch immediately."
+        >
+          <span className="material-symbols-outlined choose-assist__hint-icon" aria-hidden="true">
+            keyboard
+          </span>
+          <span>
+            For quick assisstance with keyboard: Press <kbd className="hint-kbd">1</kbd>, <kbd className="hint-kbd">2</kbd>, or <kbd className="hint-kbd">3</kbd> to launch immediately.
+          </span>
         </div>
       </div>
     </main>
@@ -662,9 +731,11 @@ export default function App() {
       : 'light'
   })
 
-  // View state: 'landing' or 'choose-assist'
+  // View state: 'landing' | 'choose-assist' | 'vision-assist'
   const [currentView, setCurrentView] = useState(() => {
-    return window.location.hash === '#choose-assist' ? 'choose-assist' : 'landing'
+    if (window.location.hash === '#vision-assist') return 'vision-assist'
+    if (window.location.hash === '#choose-assist') return 'choose-assist'
+    return 'landing'
   })
 
   // Selected mode state
@@ -695,7 +766,9 @@ export default function App() {
   // Sync URL hash with view state
   useEffect(() => {
     const handleHashChange = () => {
-      if (window.location.hash === '#choose-assist') {
+      if (window.location.hash === '#vision-assist') {
+        setCurrentView('vision-assist')
+      } else if (window.location.hash === '#choose-assist') {
         setCurrentView('choose-assist')
       } else if (window.location.hash === '' || window.location.hash === '#') {
         setCurrentView('landing')
@@ -708,10 +781,12 @@ export default function App() {
   const navigateTo = (view, mode = null) => {
     setCurrentView(view)
     if (mode) setSelectedMode(mode)
-    if (view === 'choose-assist') {
+    if (view === 'vision-assist') {
+      window.location.hash = 'vision-assist'
+    } else if (view === 'choose-assist') {
       window.location.hash = 'choose-assist'
     } else {
-      if (window.location.hash === '#choose-assist') {
+      if (window.location.hash) {
         history.pushState(null, '', window.location.pathname)
       }
     }
@@ -731,7 +806,7 @@ export default function App() {
         currentView={currentView}
         onNavigate={navigateTo}
       />
-      {currentView === 'landing' ? (
+      {currentView === 'landing' && (
         <main className="main" id="main-content">
           <HeroSection onGetStarted={() => navigateTo('choose-assist')} />
           <CapabilitiesSection onSelectMode={(mode) => navigateTo('choose-assist', mode)} />
@@ -739,10 +814,19 @@ export default function App() {
           <PrinciplesSection />
           <CTASection onGetStarted={() => navigateTo('choose-assist')} />
         </main>
-      ) : (
+      )}
+      {currentView === 'choose-assist' && (
         <ChooseAssistPage
           selectedMode={selectedMode}
           onSelectMode={(mode) => setSelectedMode(mode)}
+          onStartAssist={(mode) => {
+            if (mode === 'vision') navigateTo('vision-assist')
+          }}
+        />
+      )}
+      {currentView === 'vision-assist' && (
+        <VisionAssistPage
+          onBack={() => navigateTo('choose-assist')}
         />
       )}
       <Footer />
