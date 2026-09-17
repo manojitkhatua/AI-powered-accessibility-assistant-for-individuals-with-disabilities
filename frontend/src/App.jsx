@@ -1,9 +1,9 @@
 /**
  * VisionX — AI Accessibility Assistant
- * Landing Page Implementation
- * Source: Stitch screen 2b97dab0e7be49088b12cf25740e6da0
+ * Landing Page & Choose Assistance Mode Implementation
  */
 
+import { useState, useEffect } from 'react'
 import './App.css'
 import heroImg from './assets/hero.png'
 
@@ -13,18 +13,18 @@ import heroImg from './assets/hero.png'
 function VisionXLogo() {
   return (
     <svg
-      width="96"
+      width="32"
       height="32"
-      viewBox="0 0 96 32"
+      viewBox="0 0 32 32"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       aria-hidden="true"
+      style={{ flexShrink: 0 }}
     >
       {/* Eye / lens shape */}
-      <ellipse cx="16" cy="16" rx="14" ry="10" stroke="#0b5fff" strokeWidth="2.5" fill="none" />
-      <circle cx="16" cy="16" r="5" fill="#0b5fff" />
-      <circle cx="18" cy="14" r="1.5" fill="#ffffff" />
-      {/* "VisionX" wordmark text rendered as path-based approach via inline text */}
+      <ellipse cx="16" cy="16" rx="14" ry="10" stroke="var(--primary-container)" strokeWidth="2.5" fill="none" />
+      <circle cx="16" cy="16" r="5" fill="var(--primary-container)" />
+      <circle cx="18" cy="14" r="1.5" fill="var(--surface-container-lowest)" />
     </svg>
   )
 }
@@ -41,36 +41,95 @@ function SkipLink() {
 }
 
 /* ============================================================
+   Theme Toggle
+   ============================================================ */
+function ThemeToggle({ theme, onToggle }) {
+  const isDark = theme === 'dark'
+  return (
+    <button
+      type="button"
+      className="theme-toggle"
+      onClick={onToggle}
+      aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+      title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+      aria-pressed={isDark}
+    >
+      <span className="material-symbols-outlined theme-toggle__icon" aria-hidden="true">
+        {isDark ? 'light_mode' : 'dark_mode'}
+      </span>
+    </button>
+  )
+}
+
+/* ============================================================
    Header / Navigation
    ============================================================ */
-function Header() {
+function Header({ theme, onToggle, currentView, onNavigate }) {
+  const isAssistPage = currentView === 'choose-assist'
+
   return (
     <header className="header" role="banner">
       <div className="container header__inner">
         {/* Brand */}
-        <a className="header__brand" href="#" aria-label="VisionX — home">
+        <a
+          className="header__brand"
+          href="#"
+          onClick={(e) => {
+            e.preventDefault()
+            onNavigate('landing')
+          }}
+          aria-label="VisionX — home"
+        >
           <VisionXLogo />
           <span className="header__logo-text">VisionX</span>
         </a>
 
-        {/* Desktop Nav */}
-        <nav className="header__nav" aria-label="Main navigation">
-          <a className="header__nav-link header__nav-link--active" href="#how-it-works" aria-current="page">
-            How it works
-          </a>
-          <a className="header__nav-link" href="#accessibility">
-            Accessibility
-          </a>
-          <a className="header__nav-link" href="#about">
-            About
-          </a>
-        </nav>
+        {/* Desktop Nav on Landing */}
+        {!isAssistPage ? (
+          <nav className="header__nav" aria-label="Main navigation">
+            <a className="header__nav-link header__nav-link--active" href="#how-it-works" aria-current="page">
+              How it works
+            </a>
+            <a className="header__nav-link" href="#accessibility">
+              Accessibility
+            </a>
+            <a className="header__nav-link" href="#about">
+              About
+            </a>
+          </nav>
+        ) : (
+          <div className="header__nav" aria-label="Current location">
+            <span className="tag" style={{ background: 'var(--surface-container-high)', color: 'var(--on-surface)' }}>
+              Assistance Mode Selection
+            </span>
+          </div>
+        )}
 
         {/* Actions */}
         <div className="header__actions">
-          <a className="btn btn--primary btn--sm" href="#get-started">
-            Get Started
-          </a>
+          {isAssistPage ? (
+            <button
+              type="button"
+              className="btn btn--secondary header__back-btn"
+              onClick={() => onNavigate('landing')}
+              aria-label="Back to landing page"
+            >
+              <span className="material-symbols-outlined" aria-hidden="true">arrow_back</span>
+              <span>Back</span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="btn btn--primary btn--sm"
+              onClick={() => onNavigate('choose-assist')}
+              id="header-get-started"
+            >
+              Get Started
+            </button>
+          )}
+
+          <ThemeToggle theme={theme} onToggle={onToggle} />
+
           <div className="header__avatar" aria-hidden="true">
             <span className="material-symbols-outlined">person</span>
           </div>
@@ -83,7 +142,7 @@ function Header() {
 /* ============================================================
    Hero Section
    ============================================================ */
-function HeroSection() {
+function HeroSection({ onGetStarted }) {
   return (
     <section className="hero" aria-labelledby="hero-title">
       <div className="hero__ambient" aria-hidden="true" />
@@ -104,12 +163,18 @@ function HeroSection() {
           <p className="hero__body">
             VisionX uses AI to make your surroundings more accessible through
             vision, sound, and simple interaction.
+            <br /> Because we care
           </p>
 
           <div className="hero__ctas">
-            <a className="btn btn--primary" href="#get-started" id="get-started">
+            <button
+              type="button"
+              className="btn btn--primary"
+              onClick={onGetStarted}
+              id="get-started"
+            >
               Get Started
-            </a>
+            </button>
             <a className="btn btn--secondary" href="#how-it-works">
               See how it works
             </a>
@@ -129,7 +194,7 @@ function HeroSection() {
             />
             <div className="hero__image-badge" aria-hidden="true">
               <span className="hero__image-badge__dot" />
-              <span className="hero__image-badge__text">AI-powered accessibility</span>
+              <span className="hero__image-badge__text">AI-powered accessibility - for better you</span>
             </div>
           </div>
         </div>
@@ -168,7 +233,7 @@ const CAPABILITIES = [
   },
 ]
 
-function CapabilityCard({ icon, title, desc, tags, link }) {
+function CapabilityCard({ icon, title, desc, tags, link, onExplore }) {
   return (
     <article className="cap-card">
       <div>
@@ -185,15 +250,19 @@ function CapabilityCard({ icon, title, desc, tags, link }) {
           </div>
         </div>
       </div>
-      <a className="cap-card__link" href="#">
+      <button
+        type="button"
+        className="cap-card__link btn--text"
+        onClick={onExplore}
+      >
         <span>{link}</span>
         <span className="material-symbols-outlined" aria-hidden="true">arrow_forward</span>
-      </a>
+      </button>
     </article>
   )
 }
 
-function CapabilitiesSection() {
+function CapabilitiesSection({ onSelectMode }) {
   return (
     <section className="capabilities" aria-labelledby="capabilities-title">
       <div className="container">
@@ -209,7 +278,11 @@ function CapabilitiesSection() {
         </div>
         <div className="capabilities__grid">
           {CAPABILITIES.map((cap) => (
-            <CapabilityCard key={cap.id} {...cap} />
+            <CapabilityCard
+              key={cap.id}
+              {...cap}
+              onExplore={() => onSelectMode(cap.id)}
+            />
           ))}
         </div>
       </div>
@@ -382,7 +455,7 @@ function PrinciplesSection() {
 /* ============================================================
    CTA Section
    ============================================================ */
-function CTASection() {
+function CTASection({ onGetStarted }) {
   return (
     <section className="cta-section" aria-labelledby="cta-title">
       <div className="container">
@@ -397,9 +470,13 @@ function CTASection() {
             </p>
           </div>
           <div className="cta-card__actions">
-            <a className="btn btn--primary" href="#get-started">
+            <button
+              type="button"
+              className="btn btn--primary"
+              onClick={onGetStarted}
+            >
               Get Started
-            </a>
+            </button>
             <a className="cta-card__link" href="#">
               Learn about compatibility &amp; pilot access
             </a>
@@ -407,6 +484,135 @@ function CTASection() {
         </div>
       </div>
     </section>
+  )
+}
+
+/* ============================================================
+   Choose Assistance Mode Page
+   ============================================================ */
+const ASSIST_MODES = [
+  {
+    id: 'vision',
+    icon: 'visibility',
+    title: 'Vision Assist',
+    desc: 'Understand objects, surroundings, and spatial information with AI-powered vision.',
+    action: 'Start Vision Assist',
+    tags: ['Object recognition', 'Spatial depth', 'Text & hazards'],
+  },
+  {
+    id: 'hearing',
+    icon: 'hearing',
+    title: 'Hearing Assist',
+    desc: 'Receive important environmental information through clear visual alerts.',
+    action: 'Start Hearing Assist',
+    tags: ['Sound detection', 'Visual haptics', 'Directional cues'],
+  },
+  {
+    id: 'handsfree',
+    icon: 'mic',
+    title: 'Hands-Free Assist',
+    desc: 'Interact with VisionX using simple voice-based controls and accessible interactions.',
+    action: 'Start Hands-Free Assist',
+    tags: ['Voice control', 'Hands-free prompts', 'Smart shortcuts'],
+  },
+]
+
+function AssistanceCard({
+  id,
+  icon,
+  title,
+  desc,
+  action,
+  tags,
+  isSelected,
+  onSelect,
+}) {
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      className={`assist-card ${isSelected ? 'assist-card--selected' : ''}`}
+      onClick={() => onSelect(id)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          onSelect(id)
+        }
+      }}
+      aria-pressed={isSelected}
+      aria-label={`${title}: ${desc}. Action: ${action}`}
+    >
+      <div>
+        <div className="assist-card__top">
+          <div className="assist-card__icon-wrap" aria-hidden="true">
+            <span className="material-symbols-outlined">{icon}</span>
+          </div>
+          <div className="assist-card__badge-wrap">
+            <div
+              className="assist-card__select-indicator"
+              aria-hidden="true"
+            >
+              <span className="material-symbols-outlined">check</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="assist-card__body">
+          <h2 className="assist-card__title">{title}</h2>
+          <p className="assist-card__desc">{desc}</p>
+          <div className="assist-card__tags" aria-label={`${title} features`}>
+            {tags.map((tag) => (
+              <span key={tag} className="tag">{tag}</span>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="assist-card__footer">
+        <button
+          type="button"
+          tabIndex={-1}
+          className={`btn ${isSelected ? 'btn--primary' : 'btn--secondary'} assist-card__action`}
+          aria-hidden="true"
+        >
+          <span>{action}</span>
+          <span className="material-symbols-outlined">arrow_forward</span>
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function ChooseAssistPage({ selectedMode, onSelectMode }) {
+  return (
+    <main className="main choose-assist" id="main-content">
+      <div className="choose-assist__ambient" aria-hidden="true" />
+      <div className="container choose-assist__inner">
+        <div className="choose-assist__header">
+          <div className="choose-assist__badge" role="status">
+            <span className="choose-assist__badge-dot" aria-hidden="true" />
+            <span>Choose Your Assist</span>
+          </div>
+          <h1 className="choose-assist__title">
+            How can VisionX assist you?
+          </h1>
+          <p className="choose-assist__subtitle">
+            Choose an assistance mode to get started.
+          </p>
+        </div>
+
+        <div className="choose-assist__grid" role="region" aria-label="Assistance Modes Selection">
+          {ASSIST_MODES.map((mode) => (
+            <AssistanceCard
+              key={mode.id}
+              {...mode}
+              isSelected={selectedMode === mode.id}
+              onSelect={onSelectMode}
+            />
+          ))}
+        </div>
+      </div>
+    </main>
   )
 }
 
@@ -429,7 +635,7 @@ function Footer() {
           </nav>
         </div>
         <div className="footer__bottom">
-          <p className="footer__copyright">© 2025 VisionX. Designed for independence.</p>
+          <p className="footer__copyright">© 2026 VisionX. Designed for independence.</p>
           <div className="footer__wcag-badge" aria-label="WCAG 2.1 AA Aligned">
             <span className="footer__wcag-dot" aria-hidden="true" />
             <span>WCAG 2.1 AA Aligned</span>
@@ -444,17 +650,101 @@ function Footer() {
    App Root
    ============================================================ */
 export default function App() {
+  const [theme, setTheme] = useState(() => {
+    try {
+      const saved = localStorage.getItem('visionx_theme')
+      if (saved === 'dark' || saved === 'light') return saved
+    } catch {
+      // localStorage may fail in strict private modes
+    }
+    return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+      ? 'dark'
+      : 'light'
+  })
+
+  // View state: 'landing' or 'choose-assist'
+  const [currentView, setCurrentView] = useState(() => {
+    return window.location.hash === '#choose-assist' ? 'choose-assist' : 'landing'
+  })
+
+  // Selected mode state
+  const [selectedMode, setSelectedMode] = useState('vision')
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme)
+    try {
+      localStorage.setItem('visionx_theme', theme)
+    } catch {
+      // ignore storage errors
+    }
+  }, [theme])
+
+  // Sync with system preference if user hasn't explicitly saved a preference
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
+    const handleChange = (e) => {
+      const hasExplicitChoice = localStorage.getItem('visionx_theme')
+      if (!hasExplicitChoice) {
+        setTheme(e.matches ? 'dark' : 'light')
+      }
+    }
+    mediaQuery.addEventListener('change', handleChange)
+    return () => mediaQuery.removeEventListener('change', handleChange)
+  }, [])
+
+  // Sync URL hash with view state
+  useEffect(() => {
+    const handleHashChange = () => {
+      if (window.location.hash === '#choose-assist') {
+        setCurrentView('choose-assist')
+      } else if (window.location.hash === '' || window.location.hash === '#') {
+        setCurrentView('landing')
+      }
+    }
+    window.addEventListener('hashchange', handleHashChange)
+    return () => window.removeEventListener('hashchange', handleHashChange)
+  }, [])
+
+  const navigateTo = (view, mode = null) => {
+    setCurrentView(view)
+    if (mode) setSelectedMode(mode)
+    if (view === 'choose-assist') {
+      window.location.hash = 'choose-assist'
+    } else {
+      if (window.location.hash === '#choose-assist') {
+        history.pushState(null, '', window.location.pathname)
+      }
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  const toggleTheme = () => {
+    setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'))
+  }
+
   return (
     <>
       <SkipLink />
-      <Header />
-      <main className="main" id="main-content">
-        <HeroSection />
-        <CapabilitiesSection />
-        <HowItWorksSection />
-        <PrinciplesSection />
-        <CTASection />
-      </main>
+      <Header
+        theme={theme}
+        onToggle={toggleTheme}
+        currentView={currentView}
+        onNavigate={navigateTo}
+      />
+      {currentView === 'landing' ? (
+        <main className="main" id="main-content">
+          <HeroSection onGetStarted={() => navigateTo('choose-assist')} />
+          <CapabilitiesSection onSelectMode={(mode) => navigateTo('choose-assist', mode)} />
+          <HowItWorksSection />
+          <PrinciplesSection />
+          <CTASection onGetStarted={() => navigateTo('choose-assist')} />
+        </main>
+      ) : (
+        <ChooseAssistPage
+          selectedMode={selectedMode}
+          onSelectMode={(mode) => setSelectedMode(mode)}
+        />
+      )}
       <Footer />
     </>
   )

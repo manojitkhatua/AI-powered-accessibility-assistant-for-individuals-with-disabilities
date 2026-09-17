@@ -68,6 +68,11 @@
   --on-background:              #191c1e;
   --surface-variant:            #e0e3e5;
 
+  /* Card and border specifics */
+  --card-border:                var(--surface-container-high);
+  --header-bg:                  color-mix(in srgb, var(--surface) 85%, transparent);
+  --hero-glow:                  color-mix(in srgb, var(--primary-container) 12%, transparent);
+
   /* Typography Families */
   --font-display:   'Lexend', system-ui, sans-serif;
   --font-body:      'Atkinson Hyperlegible Next', system-ui, sans-serif;
@@ -134,6 +139,83 @@
   /* Container */
   --container-max: 1280px;
   --nav-height: 80px;
+}
+
+/* ---------- Dark Theme Tokens ---------- */
+[data-theme="dark"] {
+  /* Surface */
+  --surface:                    #0d1117;
+  --surface-dim:                #080a0f;
+  --surface-bright:             #252b36;
+  --surface-container-lowest:   #131820;
+  --surface-container-low:      #171d27;
+  --surface-container:          #1d2430;
+  --surface-container-high:     #252d3a;
+  --surface-container-highest:  #2f3847;
+
+  /* On-surface */
+  --on-surface:                 #e6edf3;
+  --on-surface-variant:         #9da7b7;
+  --inverse-surface:            #e6edf3;
+  --inverse-on-surface:         #131820;
+
+  /* Outline */
+  --outline:                    #808a9d;
+  --outline-variant:            #2c3444;
+
+  /* Primary */
+  --primary:                    #589bf9;
+  --primary-container:          #3178f6;
+  --on-primary:                 #ffffff;
+  --on-primary-container:       #e8f0fe;
+  --primary-fixed:              #1e355b;
+  --primary-fixed-dim:          #172947;
+  --on-primary-fixed:           #d8e5ff;
+  --on-primary-fixed-variant:   #aecbff;
+  --inverse-primary:            #0049cc;
+  --surface-tint:               #589bf9;
+
+  /* Secondary */
+  --secondary:                  #a0a4b8;
+  --secondary-container:        #2b2f3e;
+  --on-secondary:               #ffffff;
+  --on-secondary-container:     #e0e3f5;
+  --secondary-fixed:            #2b2f3e;
+  --secondary-fixed-dim:        #202431;
+  --on-secondary-fixed:         #f0f2fa;
+  --on-secondary-fixed-variant: #c8cde0;
+
+  /* Tertiary */
+  --tertiary:                   #4ade80;
+  --tertiary-container:         #166534;
+  --on-tertiary:                #ffffff;
+  --on-tertiary-container:      #dcfce7;
+  --tertiary-fixed:             #1b4329;
+  --tertiary-fixed-dim:         #13311e;
+  --on-tertiary-fixed:          #bbf7d0;
+  --on-tertiary-fixed-variant:  #86efac;
+
+  /* Error */
+  --error:                      #f87171;
+  --error-container:            #7f1d1d;
+  --on-error:                   #ffffff;
+  --on-error-container:         #fecaca;
+
+  /* Background */
+  --background:                 #0d1117;
+  --on-background:              #e6edf3;
+  --surface-variant:            #252d3a;
+
+  /* Shadows for dark mode */
+  --shadow-sm:   0 1px 4px rgba(0, 0, 0, 0.35);
+  --shadow-md:   0 4px 14px rgba(0, 0, 0, 0.45);
+  --shadow-lg:   0 8px 24px rgba(0, 0, 0, 0.55);
+  --shadow-xl:   0 16px 40px rgba(0, 0, 0, 0.65);
+
+  /* Card and border specifics */
+  --card-border:                #252d3a;
+  --header-bg:                  color-mix(in srgb, var(--surface) 80%, transparent);
+  --hero-glow:                  color-mix(in srgb, var(--primary-container) 18%, transparent);
 }
 
 /* ---------- Reset & Base ---------- */
