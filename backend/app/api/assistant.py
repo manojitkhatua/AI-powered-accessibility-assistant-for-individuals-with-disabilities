@@ -1,10 +1,9 @@
+import base64
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 
 from PIL import Image
 from fastapi import APIRouter, File, HTTPException, UploadFile
-from fastapi.responses import FileResponse
-from starlette.background import BackgroundTask
 
 from app.database.repositories.memory_repository import get_memories
 from app.services.depth_service import depth_service
@@ -101,26 +100,33 @@ async def analyze(
             output_path,
         )
 
-        return FileResponse(
-            output_path,
-            media_type="audio/wav",
-            filename="assistant_response.wav",
-            background=BackgroundTask(
-                cleanup_file,
-                output_path,
-            ),
-        )
+        # 8. Return both text and audio
+        audio_data = Path(output_path).read_bytes()
+
+        return {
+            "answer": answer,
+            "audio": base64.b64encode(audio_data).decode("utf-8"),
+            "audio_mime_type": "audio/wav",
+            "detections": detections,
+        }
 
     except Exception as exc:
+        import traceback
+
+        print("\n========== ASSISTANT ERROR ==========")
+        traceback.print_exc()
+        print("=====================================\n")
+
         cleanup_file(audio_path)
         cleanup_file(image_path)
         cleanup_file(output_path)
 
         raise HTTPException(
             status_code=500,
-            detail="Assistant processing failed. Please try again.",
+            detail=str(exc),
         ) from exc
 
     finally:
         cleanup_file(audio_path)
         cleanup_file(image_path)
+        cleanup_file(output_path)

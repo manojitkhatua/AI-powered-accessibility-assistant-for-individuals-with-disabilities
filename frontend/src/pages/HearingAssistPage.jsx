@@ -18,6 +18,10 @@ export default function HearingAssistPage() {
   const [micError, setMicError] = useState(null)
   const [audioLevel, setAudioLevel] = useState(0)
 
+  const [soundResult, setSoundResult] = useState(null)
+  const [soundAnalysisLoading, setSoundAnalysisLoading] = useState(false)
+  const soundRecorderRef = useRef(null)
+  const soundChunksRef = useRef([])
   // Clean up all audio nodes, streams, and animation frames safely
   const cleanupAudio = () => {
     if (rafIdRef.current) {
@@ -64,81 +68,132 @@ export default function HearingAssistPage() {
     }
   }, [])
 
+
+
+  const analyzeSound = async (audioBlob) => {
+      if (!audioBlob || soundAnalysisLoading) return
+
+      setSoundAnalysisLoading(true)
+
+      try {
+        const formData = new FormData()
+        formData.append('audio', audioBlob, 'hearing.webm')
+
+        const response = await fetch(
+          'http://127.0.0.1:8000/api/hearing/analyze',
+          {
+            method: 'POST',
+            body: formData,
+          },
+        )
+
+        if (!response.ok) {
+          throw new Error('Sound analysis failed')
+        }
+
+        const result = await response.json()
+        setSoundResult(result)
+      } catch (error) {
+        console.error('Sound analysis error:', error)
+        setMicError('Unable to analyze the surrounding sound.')
+      } finally {
+        setSoundAnalysisLoading(false)
+      }
+    }
   // Start real microphone capture and real-time level analyzer
   const handleStartListening = async () => {
-    setMicError(null)
-
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      setMicError('Microphone access is not supported by your browser or environment.')
-      return
-    }
-
-    try {
+      setMicError('')
+      setSoundResult(null)
       setMicLoading(true)
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-      streamRef.current = stream
 
-      // Initialize Web Audio API Analyser
-      const AudioContextClass = window.AudioContext || window.webkitAudioContext
-      const audioContext = new AudioContextClass()
-      audioContextRef.current = audioContext
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: true,
+        })
 
-      // Resume if browser suspended AudioContext
-      if (audioContext.state === 'suspended') {
-        await audioContext.resume()
-      }
+        streamRef.current = stream
 
-      const analyser = audioContext.createAnalyser()
-      analyser.fftSize = 256
-      analyser.smoothingTimeConstant = 0.75
-      analyserRef.current = analyser
+        // Keep the existing live audio-level visualization
+        const AudioContextClass =
+          window.AudioContext || window.webkitAudioContext
 
-      const source = audioContext.createMediaStreamSource(stream)
-      source.connect(analyser)
-      sourceRef.current = source
+        const audioContext = new AudioContextClass()
+        const analyser = audioContext.createAnalyser()
+        const source = audioContext.createMediaStreamSource(stream)
 
-      setIsListening(true)
-      setMicLoading(false)
+        analyser.fftSize = 256
+        source.connect(analyser)
 
-      // BACKEND REQUIRED: Send captured microphone audio to the AI sound classification service.
+        const dataArray = new Uint8Array(
+          analyser.frequencyBinCount,
+        )
 
-      // Continuously read normalized volume levels
-      const dataArray = new Uint8Array(analyser.frequencyBinCount)
+        const updateAudioLevel = () => {
+          if (!streamRef.current) return
 
-      const updateActivity = () => {
-        if (!analyserRef.current) return
-        analyserRef.current.getByteFrequencyData(dataArray)
+          analyser.getByteFrequencyData(dataArray)
 
-        let sum = 0
-        for (let i = 0; i < dataArray.length; i++) {
-          sum += dataArray[i]
+          const average =
+            dataArray.reduce((sum, value) => sum + value, 0) /
+            dataArray.length
+
+          setAudioLevel(average)
+
+          requestAnimationFrame(updateAudioLevel)
         }
-        const average = sum / dataArray.length
-        // Normalize 0-100 scale based on audio volume
-        const normalized = Math.min(100, Math.round((average / 110) * 100))
-        setAudioLevel(normalized)
 
-        rafIdRef.current = requestAnimationFrame(updateActivity)
-      }
+        updateAudioLevel()
 
-      rafIdRef.current = requestAnimationFrame(updateActivity)
-    } catch (err) {
-      cleanupAudio()
-      setMicLoading(false)
-      setIsListening(false)
+        // Start recording a short environmental-audio segment
+        const recorder = new MediaRecorder(stream)
 
-      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+        soundRecorderRef.current = recorder
+        soundChunksRef.current = []
+
+        recorder.ondataavailable = (event) => {
+          if (event.data.size > 0) {
+            soundChunksRef.current.push(event.data)
+          }
+        }
+
+        recorder.onstop = () => {
+          const audioBlob = new Blob(
+            soundChunksRef.current,
+            {
+              type: recorder.mimeType || 'audio/webm',
+            },
+          )
+
+          analyzeSound(audioBlob)
+        }
+
+        recorder.start()
+
+        setIsListening(true)
+        setMicLoading(false)
+
+        // Analyze the first 5-second audio segment
+        setTimeout(() => {
+          if (soundRecorderRef.current?.state === 'recording') {
+            soundRecorderRef.current.stop()
+          }
+        }, 5000)
+      } catch (error) {
+        console.error('Microphone error:', error)
+
         setMicError(
-          'Microphone access was denied. Please allow microphone access in your browser settings and try again.'
+          'Microphone access is required to detect surrounding sounds.',
         )
-      } else {
-        setMicError(
-          'Unable to access the microphone. Please check your microphone and browser permissions.'
-        )
+
+        setIsListening(false)
+        setMicLoading(false)
+
+        if (streamRef.current) {
+          streamRef.current.getTracks().forEach((track) => track.stop())
+          streamRef.current = null
+        }
       }
     }
-  }
-
   // Stop microphone capture and reset activity analyzer
   const handleStopListening = () => {
     cleanupAudio()
@@ -411,52 +466,85 @@ export default function HearingAssistPage() {
 
         {/* Live Sound Alert & Sample Result Grid */}
         <div className="hearing-assist__grid">
-          {/* Live Alert Section (Awaiting Real Backend Stream) */}
-          <section className="hearing-alert-box" aria-labelledby="live-alert-heading">
+
+          <section
+            className="hearing-alert-box"
+            aria-labelledby="live-alert-heading"
+          >
             <div className="hearing-card hearing-card--live">
+
               <div className="hearing-card__header">
                 <div className="hearing-card__title-wrap">
-                  <span className="material-symbols-outlined hearing-card__icon" aria-hidden="true">
+                  <span
+                    className="material-symbols-outlined hearing-card__icon"
+                    aria-hidden="true"
+                  >
                     sensors
                   </span>
-                  <h2 className="hearing-card__title" id="live-alert-heading">
+
+                  <h2
+                    className="hearing-card__title"
+                    id="live-alert-heading"
+                  >
                     Live Sound Alert
                   </h2>
                 </div>
+
                 <div className="hearing-card__badge" role="status">
-                  <span className="hearing-card__badge-dot" aria-hidden="true" />
-                  <span>{isListening ? 'Monitoring...' : 'Standby'}</span>
+                  <span
+                    className="hearing-card__badge-dot"
+                    aria-hidden="true"
+                  />
+                  <span>
+                    {isListening ? 'Monitoring...' : 'Standby'}
+                  </span>
                 </div>
               </div>
 
-              {/* BACKEND REQUIRED: Receive structured sound detection results. */}
-              {/* BACKEND REQUIRED: Display real-time accessibility alerts from backend results. */}
-              <div className="hearing-alert-box__body" role="region" aria-live="polite">
-                <div className="hearing-alert-box__empty">
-                  <div className="hearing-alert-box__empty-icon" aria-hidden="true">
-                    <span className="material-symbols-outlined">
-                      {isListening ? 'spatial_tracking' : 'notifications_paused'}
-                    </span>
+              <div className="hearing-card__content">
+                {soundAnalysisLoading ? (
+                  <p>Analyzing the surrounding sound...</p>
+                ) : soundResult ? (
+                  <div>
+                    <strong>{soundResult.sound}</strong>
+                    <p>{soundResult.description}</p>
+                    <span>{soundResult.category}</span>
                   </div>
-                  <strong className="hearing-alert-box__empty-title">
-                    {isListening ? 'Listening in progress' : 'No important sounds detected yet.'}
-                  </strong>
-                  <p className="hearing-alert-box__empty-desc">
-                    {isListening
-                      ? 'VisionX is analyzing incoming audio streams. Alerts will appear here instantly.'
-                      : 'Detected sounds will appear here as clear visual alerts.'}
-                  </p>
-                </div>
+                ) : isListening ? (
+                  <p>Listening for important sounds...</p>
+                ) : (
+                  <p>Start listening to detect sounds around you.</p>
+                )}
               </div>
 
-              <div className="hearing-card__footer">
-                <span className="hearing-card__hint">
-                  <span className="material-symbols-outlined" aria-hidden="true">info</span>
-                  Live alerts prioritize critical acoustic signals such as alarms, doorbells, and approaching hazards.
-                </span>
-              </div>
-            </div>
-          </section>
+                      {/* BACKEND REQUIRED: Receive structured sound detection results. */}
+                      {/* BACKEND REQUIRED: Display real-time accessibility alerts from backend results. */}
+                      <div className="hearing-alert-box__body" role="region" aria-live="polite">
+                        <div className="hearing-alert-box__empty">
+                          <div className="hearing-alert-box__empty-icon" aria-hidden="true">
+                            <span className="material-symbols-outlined">
+                              {isListening ? 'spatial_tracking' : 'notifications_paused'}
+                            </span>
+                          </div>
+                          <strong className="hearing-alert-box__empty-title">
+                            {isListening ? 'Listening in progress' : 'No important sounds detected yet.'}
+                          </strong>
+                          <p className="hearing-alert-box__empty-desc">
+                            {isListening
+                              ? 'VisionX is analyzing incoming audio streams. Alerts will appear here instantly.'
+                              : 'Detected sounds will appear here as clear visual alerts.'}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="hearing-card__footer">
+                        <span className="hearing-card__hint">
+                          <span className="material-symbols-outlined" aria-hidden="true">info</span>
+                          Live alerts prioritize critical acoustic signals such as alarms, doorbells, and approaching hazards.
+                        </span>
+                      </div>
+                    </div>
+                  </section>
 
           {/* Sample Result Preview Section */}
           <section className="hearing-sample-box" aria-labelledby="sample-result-heading">
