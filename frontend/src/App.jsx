@@ -10,6 +10,7 @@ import VisionAssistPage from './pages/VisionAssistPage.jsx'
 import HearingAssistPage from './pages/HearingAssistPage.jsx'
 import HandsFreeAssistPage from './pages/HandsFreeAssistPage.jsx'
 import SettingsPage from './pages/SettingsPage.jsx'
+import SignUpPage from './pages/SignUpPage.jsx'
 
 /* ============================================================
    Logo — inline SVG wordmark (stable, no external URL)
@@ -75,11 +76,12 @@ function Header({ theme, onToggle, currentView, onNavigate }) {
   const isHearingAssist = currentView === 'hearing-assist'
   const isHandsFree = currentView === 'handsfree-assist'
   const isSettings = currentView === 'settings'
+  const isSignUp = currentView === 'signup'
 
   const handleBack = () => {
     if (isVisionAssist || isHearingAssist || isHandsFree || isSettings) {
       onNavigate('choose-assist')
-    } else if (isChooseAssist) {
+    } else if (isChooseAssist || isSignUp) {
       onNavigate('landing')
     }
   }
@@ -125,6 +127,8 @@ function Header({ theme, onToggle, currentView, onNavigate }) {
                 ? 'Hands-Free Assist'
                 : isSettings
                 ? 'Accessibility Settings'
+                : isSignUp
+                ? 'Create Account'
                 : 'Assistance Mode Selection'}
             </span>
           </div>
@@ -171,9 +175,15 @@ function Header({ theme, onToggle, currentView, onNavigate }) {
 
           <ThemeToggle theme={theme} onToggle={onToggle} />
 
-          <div className="header__avatar" aria-hidden="true">
+          <button
+            type="button"
+            className={`header__avatar ${isSignUp ? 'header__avatar--active' : ''}`}
+            onClick={() => onNavigate('signup')}
+            aria-label={isSignUp ? 'Current page: Create Account' : 'Sign Up or Account'}
+            title="Sign Up / Account"
+          >
             <span className="material-symbols-outlined">person</span>
-          </div>
+          </button>
         </div>
       </div>
     </header>
@@ -761,13 +771,14 @@ export default function App() {
       : 'light'
   })
 
-  // View state: 'landing' | 'choose-assist' | 'vision-assist' | 'hearing-assist' | 'handsfree-assist' | 'settings'
+  // View state: 'landing' | 'choose-assist' | 'vision-assist' | 'hearing-assist' | 'handsfree-assist' | 'settings' | 'signup'
   const [currentView, setCurrentView] = useState(() => {
     if (window.location.hash === '#vision-assist')    return 'vision-assist'
     if (window.location.hash === '#hearing-assist')   return 'hearing-assist'
     if (window.location.hash === '#handsfree-assist') return 'handsfree-assist'
     if (window.location.hash === '#choose-assist')    return 'choose-assist'
     if (window.location.hash === '#settings')         return 'settings'
+    if (window.location.hash === '#signup')           return 'signup'
     return 'landing'
   })
 
@@ -809,6 +820,8 @@ export default function App() {
         setCurrentView('choose-assist')
       } else if (window.location.hash === '#settings') {
         setCurrentView('settings')
+      } else if (window.location.hash === '#signup') {
+        setCurrentView('signup')
       } else if (window.location.hash === '' || window.location.hash === '#') {
         setCurrentView('landing')
       }
@@ -830,6 +843,8 @@ export default function App() {
       window.location.hash = 'choose-assist'
     } else if (view === 'settings') {
       window.location.hash = 'settings'
+    } else if (view === 'signup') {
+      window.location.hash = 'signup'
     } else {
       if (window.location.hash) {
         history.pushState(null, '', window.location.pathname)
@@ -889,6 +904,12 @@ export default function App() {
       {currentView === 'settings' && (
         <SettingsPage
           onBack={() => navigateTo('choose-assist')}
+          onNavigate={navigateTo}
+        />
+      )}
+      {currentView === 'signup' && (
+        <SignUpPage
+          onBack={() => navigateTo('landing')}
           onNavigate={navigateTo}
         />
       )}

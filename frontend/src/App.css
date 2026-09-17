@@ -140,18 +140,39 @@
 }
 
 .header__avatar {
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
   border-radius: var(--radius-full);
-  background: var(--primary);
+  background: var(--primary-container);
+  border: 1px solid var(--outline-variant);
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  cursor: pointer;
+  padding: 0;
+  color: var(--on-primary);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
 }
+
+.header__avatar:hover {
+  background: var(--primary);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+
+.header__avatar:focus-visible {
+  outline: 2px solid var(--primary-container);
+  outline-offset: 2px;
+}
+
+.header__avatar--active {
+  box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--primary-container);
+}
+
 .header__avatar .material-symbols-outlined {
   color: var(--on-primary);
-  font-size: 18px;
+  font-size: 20px;
 }
 
 /* ---------- Theme Toggle ---------- */
