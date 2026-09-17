@@ -7,6 +7,7 @@ import { useState, useEffect } from 'react'
 import './App.css'
 import heroImg from './assets/hero.png'
 import VisionAssistPage from './pages/VisionAssistPage.jsx'
+import HearingAssistPage from './pages/HearingAssistPage.jsx'
 
 /* ============================================================
    Logo — inline SVG wordmark (stable, no external URL)
@@ -69,9 +70,10 @@ function Header({ theme, onToggle, currentView, onNavigate }) {
   const isLanding = currentView === 'landing'
   const isChooseAssist = currentView === 'choose-assist'
   const isVisionAssist = currentView === 'vision-assist'
+  const isHearingAssist = currentView === 'hearing-assist'
 
   const handleBack = () => {
-    if (isVisionAssist) {
+    if (isVisionAssist || isHearingAssist) {
       onNavigate('choose-assist')
     } else if (isChooseAssist) {
       onNavigate('landing')
@@ -111,7 +113,7 @@ function Header({ theme, onToggle, currentView, onNavigate }) {
         ) : (
           <div className="header__nav" aria-label="Current page">
             <span className="tag" style={{ background: 'var(--surface-container-high)', color: 'var(--on-surface)' }}>
-              {isVisionAssist ? 'Vision Assist' : 'Assistance Mode Selection'}
+              {isVisionAssist ? 'Vision Assist' : isHearingAssist ? 'Hearing Assist' : 'Assistance Mode Selection'}
             </span>
           </div>
         )}
@@ -123,7 +125,11 @@ function Header({ theme, onToggle, currentView, onNavigate }) {
               type="button"
               className="btn btn--secondary header__back-btn"
               onClick={handleBack}
-              aria-label={isVisionAssist ? 'Back to Choose Your Assist' : 'Back to Home'}
+              aria-label={
+                isVisionAssist || isHearingAssist
+                  ? 'Back to Choose Your Assist'
+                  : 'Back to Home'
+              }
             >
               <span className="material-symbols-outlined" aria-hidden="true">arrow_back</span>
               <span>Back</span>
@@ -597,8 +603,8 @@ function AssistanceCard({
 function ChooseAssistPage({ selectedMode, onSelectMode, onStartAssist }) {
   const handleCardClick = (modeId) => {
     onSelectMode(modeId)
-    if (modeId === 'vision' && onStartAssist) {
-      onStartAssist('vision')
+    if (onStartAssist) {
+      onStartAssist(modeId)
     }
   }
 
@@ -731,9 +737,10 @@ export default function App() {
       : 'light'
   })
 
-  // View state: 'landing' | 'choose-assist' | 'vision-assist'
+  // View state: 'landing' | 'choose-assist' | 'vision-assist' | 'hearing-assist'
   const [currentView, setCurrentView] = useState(() => {
     if (window.location.hash === '#vision-assist') return 'vision-assist'
+    if (window.location.hash === '#hearing-assist') return 'hearing-assist'
     if (window.location.hash === '#choose-assist') return 'choose-assist'
     return 'landing'
   })
@@ -768,6 +775,8 @@ export default function App() {
     const handleHashChange = () => {
       if (window.location.hash === '#vision-assist') {
         setCurrentView('vision-assist')
+      } else if (window.location.hash === '#hearing-assist') {
+        setCurrentView('hearing-assist')
       } else if (window.location.hash === '#choose-assist') {
         setCurrentView('choose-assist')
       } else if (window.location.hash === '' || window.location.hash === '#') {
@@ -783,6 +792,8 @@ export default function App() {
     if (mode) setSelectedMode(mode)
     if (view === 'vision-assist') {
       window.location.hash = 'vision-assist'
+    } else if (view === 'hearing-assist') {
+      window.location.hash = 'hearing-assist'
     } else if (view === 'choose-assist') {
       window.location.hash = 'choose-assist'
     } else {
@@ -821,11 +832,17 @@ export default function App() {
           onSelectMode={(mode) => setSelectedMode(mode)}
           onStartAssist={(mode) => {
             if (mode === 'vision') navigateTo('vision-assist')
+            if (mode === 'hearing') navigateTo('hearing-assist')
           }}
         />
       )}
       {currentView === 'vision-assist' && (
         <VisionAssistPage
+          onBack={() => navigateTo('choose-assist')}
+        />
+      )}
+      {currentView === 'hearing-assist' && (
+        <HearingAssistPage
           onBack={() => navigateTo('choose-assist')}
         />
       )}
