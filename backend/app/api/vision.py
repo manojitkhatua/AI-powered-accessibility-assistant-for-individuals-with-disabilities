@@ -1,5 +1,6 @@
 from pathlib import Path
 from tempfile import NamedTemporaryFile
+from app.services.ocr_service import ocr_service
 
 from fastapi import APIRouter, File, UploadFile
 
@@ -36,5 +37,19 @@ async def detect_objects(file: UploadFile = File(...)):
 
         return {"detections": detections}
 
+    finally:
+        Path(temp_path).unlink(missing_ok=True)
+        
+@router.post("/ocr")
+async def extract_text(file: UploadFile = File(...)):
+    suffix = Path(file.filename or "").suffix or ".jpg"
+
+    with NamedTemporaryFile(delete=False, suffix=suffix) as temp_file:
+        temp_file.write(await file.read())
+        temp_path = temp_file.name
+
+    try:
+        text = ocr_service.extract_text(temp_path)
+        return {"text": text}
     finally:
         Path(temp_path).unlink(missing_ok=True)
