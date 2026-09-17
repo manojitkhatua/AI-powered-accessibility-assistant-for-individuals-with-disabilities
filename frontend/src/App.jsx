@@ -8,6 +8,8 @@ import './App.css'
 import heroImg from './assets/hero.png'
 import VisionAssistPage from './pages/VisionAssistPage.jsx'
 import HearingAssistPage from './pages/HearingAssistPage.jsx'
+import HandsFreeAssistPage from './pages/HandsFreeAssistPage.jsx'
+import SettingsPage from './pages/SettingsPage.jsx'
 
 /* ============================================================
    Logo — inline SVG wordmark (stable, no external URL)
@@ -71,9 +73,11 @@ function Header({ theme, onToggle, currentView, onNavigate }) {
   const isChooseAssist = currentView === 'choose-assist'
   const isVisionAssist = currentView === 'vision-assist'
   const isHearingAssist = currentView === 'hearing-assist'
+  const isHandsFree = currentView === 'handsfree-assist'
+  const isSettings = currentView === 'settings'
 
   const handleBack = () => {
-    if (isVisionAssist || isHearingAssist) {
+    if (isVisionAssist || isHearingAssist || isHandsFree || isSettings) {
       onNavigate('choose-assist')
     } else if (isChooseAssist) {
       onNavigate('landing')
@@ -113,7 +117,15 @@ function Header({ theme, onToggle, currentView, onNavigate }) {
         ) : (
           <div className="header__nav" aria-label="Current page">
             <span className="tag" style={{ background: 'var(--surface-container-high)', color: 'var(--on-surface)' }}>
-              {isVisionAssist ? 'Vision Assist' : isHearingAssist ? 'Hearing Assist' : 'Assistance Mode Selection'}
+              {isVisionAssist
+                ? 'Vision Assist'
+                : isHearingAssist
+                ? 'Hearing Assist'
+                : isHandsFree
+                ? 'Hands-Free Assist'
+                : isSettings
+                ? 'Accessibility Settings'
+                : 'Assistance Mode Selection'}
             </span>
           </div>
         )}
@@ -121,19 +133,31 @@ function Header({ theme, onToggle, currentView, onNavigate }) {
         {/* Actions */}
         <div className="header__actions">
           {!isLanding ? (
-            <button
-              type="button"
-              className="btn btn--secondary header__back-btn"
-              onClick={handleBack}
-              aria-label={
-                isVisionAssist || isHearingAssist
-                  ? 'Back to Choose Your Assist'
-                  : 'Back to Home'
-              }
-            >
-              <span className="material-symbols-outlined" aria-hidden="true">arrow_back</span>
-              <span>Back</span>
-            </button>
+            <>
+              <button
+                type="button"
+                className={`btn btn--secondary header__a11y-btn ${isSettings ? 'header__a11y-btn--active' : ''}`}
+                onClick={() => onNavigate('settings')}
+                aria-label="Open Accessibility Settings"
+                aria-current={isSettings ? 'page' : undefined}
+              >
+                <span className="material-symbols-outlined" aria-hidden="true">settings</span>
+                <span>Accessibility</span>
+              </button>
+              <button
+                type="button"
+                className="btn btn--secondary header__back-btn"
+                onClick={handleBack}
+                aria-label={
+                  isVisionAssist || isHearingAssist || isHandsFree || isSettings
+                    ? 'Back to Choose Your Assist'
+                    : 'Back to Home'
+                }
+              >
+                <span className="material-symbols-outlined" aria-hidden="true">arrow_back</span>
+                <span>Back</span>
+              </button>
+            </>
           ) : (
             <button
               type="button"
@@ -737,11 +761,13 @@ export default function App() {
       : 'light'
   })
 
-  // View state: 'landing' | 'choose-assist' | 'vision-assist' | 'hearing-assist'
+  // View state: 'landing' | 'choose-assist' | 'vision-assist' | 'hearing-assist' | 'handsfree-assist' | 'settings'
   const [currentView, setCurrentView] = useState(() => {
-    if (window.location.hash === '#vision-assist') return 'vision-assist'
-    if (window.location.hash === '#hearing-assist') return 'hearing-assist'
-    if (window.location.hash === '#choose-assist') return 'choose-assist'
+    if (window.location.hash === '#vision-assist')    return 'vision-assist'
+    if (window.location.hash === '#hearing-assist')   return 'hearing-assist'
+    if (window.location.hash === '#handsfree-assist') return 'handsfree-assist'
+    if (window.location.hash === '#choose-assist')    return 'choose-assist'
+    if (window.location.hash === '#settings')         return 'settings'
     return 'landing'
   })
 
@@ -777,8 +803,12 @@ export default function App() {
         setCurrentView('vision-assist')
       } else if (window.location.hash === '#hearing-assist') {
         setCurrentView('hearing-assist')
+      } else if (window.location.hash === '#handsfree-assist') {
+        setCurrentView('handsfree-assist')
       } else if (window.location.hash === '#choose-assist') {
         setCurrentView('choose-assist')
+      } else if (window.location.hash === '#settings') {
+        setCurrentView('settings')
       } else if (window.location.hash === '' || window.location.hash === '#') {
         setCurrentView('landing')
       }
@@ -794,8 +824,12 @@ export default function App() {
       window.location.hash = 'vision-assist'
     } else if (view === 'hearing-assist') {
       window.location.hash = 'hearing-assist'
+    } else if (view === 'handsfree-assist') {
+      window.location.hash = 'handsfree-assist'
     } else if (view === 'choose-assist') {
       window.location.hash = 'choose-assist'
+    } else if (view === 'settings') {
+      window.location.hash = 'settings'
     } else {
       if (window.location.hash) {
         history.pushState(null, '', window.location.pathname)
@@ -831,8 +865,9 @@ export default function App() {
           selectedMode={selectedMode}
           onSelectMode={(mode) => setSelectedMode(mode)}
           onStartAssist={(mode) => {
-            if (mode === 'vision') navigateTo('vision-assist')
-            if (mode === 'hearing') navigateTo('hearing-assist')
+            if (mode === 'vision')     navigateTo('vision-assist')
+            if (mode === 'hearing')    navigateTo('hearing-assist')
+            if (mode === 'handsfree') navigateTo('handsfree-assist')
           }}
         />
       )}
@@ -844,6 +879,17 @@ export default function App() {
       {currentView === 'hearing-assist' && (
         <HearingAssistPage
           onBack={() => navigateTo('choose-assist')}
+        />
+      )}
+      {currentView === 'handsfree-assist' && (
+        <HandsFreeAssistPage
+          onBack={() => navigateTo('choose-assist')}
+        />
+      )}
+      {currentView === 'settings' && (
+        <SettingsPage
+          onBack={() => navigateTo('choose-assist')}
+          onNavigate={navigateTo}
         />
       )}
       <Footer />

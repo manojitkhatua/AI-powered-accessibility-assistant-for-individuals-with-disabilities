@@ -108,7 +108,35 @@
 .header__actions {
   display: flex;
   align-items: center;
-  gap: var(--space-md);
+  gap: var(--space-sm);
+}
+@media (min-width: 640px) {
+  .header__actions {
+    gap: var(--space-md);
+  }
+}
+
+.header__a11y-btn,
+.header__back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 6px 14px;
+  font-size: var(--text-button-sm, 14px);
+  font-weight: 600;
+  border-radius: var(--radius-md);
+}
+
+.header__a11y-btn--active {
+  background: color-mix(in srgb, var(--primary-container) 15%, transparent);
+  border-color: var(--primary-container);
+  color: var(--primary);
+}
+
+.header__a11y-btn .material-symbols-outlined,
+.header__back-btn .material-symbols-outlined {
+  font-size: 18px;
 }
 
 .header__avatar {
