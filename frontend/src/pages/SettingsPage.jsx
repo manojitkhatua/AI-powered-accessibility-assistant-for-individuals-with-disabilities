@@ -6,51 +6,22 @@
  */
 
 import { useState, useEffect } from 'react'
+import { useAccessibility, DEFAULT_ACCESSIBILITY_SETTINGS } from '../context/AccessibilityContext.jsx'
 import './SettingsPage.css'
 
-// Default factory configuration
-export const DEFAULT_SETTINGS = {
-  textSize: 'normal',             // 'normal' | 'large' | 'extra-large'
-  highContrast: false,
-  reducedMotion: false,
-  voiceResponses: true,
-  readResponsesAloud: false,
-  voiceFeedback: true,
-  largeControls: false,
-  keyboardNavigation: true,
-  simplifiedInteraction: false,
-  language: 'en',
-}
+export { DEFAULT_ACCESSIBILITY_SETTINGS as DEFAULT_SETTINGS }
 
 export default function SettingsPage({ onBack, onNavigate }) {
-  // FUTURE FRONTEND ENHANCEMENT: Persist via localStorage
-  const [settings, setSettings] = useState(() => {
-    try {
-      const saved = localStorage.getItem('visionx_accessibility_settings')
-      if (saved) {
-        return { ...DEFAULT_SETTINGS, ...JSON.parse(saved) }
-      }
-    } catch {
-      // ignore storage parsing error
-    }
-    return DEFAULT_SETTINGS
-  })
+  // Centralized application-wide accessibility state
+  const { settings, updateSetting: ctxUpdateSetting, resetSettings: ctxResetSettings } = useAccessibility()
 
   const [notification, setNotification] = useState(null)
   const [showResetModal, setShowResetModal] = useState(false)
   const [showSignOutNotice, setShowSignOutNotice] = useState(false)
 
-  // Save changes locally and announce to screen reader
+  // Update setting through centralized context and announce to screen reader
   const updateSetting = (key, value, announcementText) => {
-    setSettings((prev) => {
-      const next = { ...prev, [key]: value }
-      try {
-        localStorage.setItem('visionx_accessibility_settings', JSON.stringify(next))
-      } catch {
-        // ignore storage error
-      }
-      return next
-    })
+    ctxUpdateSetting(key, value)
 
     if (announcementText) {
       setNotification({
@@ -72,12 +43,7 @@ export default function SettingsPage({ onBack, onNavigate }) {
 
   // Handle resetting settings back to defaults
   const handleConfirmReset = () => {
-    setSettings(DEFAULT_SETTINGS)
-    try {
-      localStorage.setItem('visionx_accessibility_settings', JSON.stringify(DEFAULT_SETTINGS))
-    } catch {
-      // ignore storage error
-    }
+    ctxResetSettings()
     setShowResetModal(false)
     setNotification({
       id: Date.now(),
