@@ -11,7 +11,7 @@ from app.services.spatial_service import spatial_service
 from app.services.stt_service import stt_service
 from app.services.tts_service import tts_service
 from app.services.vision_service import vision_service
-
+from app.services.depth_service import depth_service
 
 router = APIRouter(
     prefix="/api/assistant",
@@ -52,7 +52,6 @@ async def analyze(
 
         # 3. Spatial reasoning
         image_width = Image.open(image_path).width
-
         for detection in detections:
             detection["horizontal"] = (
                 spatial_service.get_horizontal_position(
@@ -61,20 +60,26 @@ async def analyze(
                 )
             )
 
-        # 4. Retrieve remembered objects
+        # 4. Distance estimation
+        detections = depth_service.estimate_distances(
+            image_path,
+            detections,
+        )
+
+        # 5. Retrieve remembered objects
         memories = get_memories(
             "00000000-0000-0000-0000-000000000001",
             limit=20,
         )
 
-        # 5. LLM reasoning
+        # 6. LLM reasoning
         answer = llm_service.answer(
             transcription,
             detections,
             memories,
         )
 
-        # 6. Text-to-speech
+        # 7. Text-to-speech
         with NamedTemporaryFile(
             delete=False,
             suffix=".wav",
