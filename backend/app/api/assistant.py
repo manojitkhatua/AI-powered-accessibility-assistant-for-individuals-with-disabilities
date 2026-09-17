@@ -1,5 +1,6 @@
 from pathlib import Path
 from tempfile import NamedTemporaryFile
+from PIL import Image
 
 from fastapi import APIRouter, File, UploadFile
 from fastapi.responses import FileResponse
@@ -49,7 +50,7 @@ async def analyze(
         detections = vision_service.detect(image_path)
 
         # 3. Spatial reasoning
-        image_width = 3000
+        image_width = Image.open(image_path).width
 
         for detection in detections:
             detection["horizontal"] = (
