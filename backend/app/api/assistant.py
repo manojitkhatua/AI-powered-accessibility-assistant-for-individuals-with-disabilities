@@ -1,10 +1,11 @@
 from pathlib import Path
 from tempfile import NamedTemporaryFile
-from PIL import Image
 
+from PIL import Image
 from fastapi import APIRouter, File, UploadFile
 from fastapi.responses import FileResponse
 
+from app.database.repositories.memory_repository import get_memories
 from app.services.llm_service import llm_service
 from app.services.spatial_service import spatial_service
 from app.services.stt_service import stt_service
@@ -60,13 +61,20 @@ async def analyze(
                 )
             )
 
-        # 4. LLM reasoning
+        # 4. Retrieve remembered objects
+        memories = get_memories(
+            "00000000-0000-0000-0000-000000000001",
+            limit=20,
+        )
+
+        # 5. LLM reasoning
         answer = llm_service.answer(
             transcription,
             detections,
+            memories,
         )
 
-        # 5. Text-to-speech
+        # 6. Text-to-speech
         with NamedTemporaryFile(
             delete=False,
             suffix=".wav",
