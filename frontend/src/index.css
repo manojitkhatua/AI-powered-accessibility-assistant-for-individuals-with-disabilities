@@ -1,0 +1,581 @@
+/* ==========================================================
+   VisionX Design System — Global CSS
+   Source of truth: Stitch screen 2b97dab0e7be49088b12cf25740e6da0
+   ========================================================== */
+
+/* ---------- Design Tokens ---------- */
+:root {
+  /* Surface */
+  --surface:                    #f8f9fb;
+  --surface-dim:                #d8dadc;
+  --surface-bright:             #f8f9fb;
+  --surface-container-lowest:   #ffffff;
+  --surface-container-low:      #f2f4f6;
+  --surface-container:          #eceef0;
+  --surface-container-high:     #e6e8ea;
+  --surface-container-highest:  #e0e3e5;
+
+  /* On-surface */
+  --on-surface:                 #191c1e;
+  --on-surface-variant:         #424656;
+  --inverse-surface:            #2d3133;
+  --inverse-on-surface:         #eff1f3;
+
+  /* Outline */
+  --outline:                    #737687;
+  --outline-variant:            #c3c5d9;
+
+  /* Primary */
+  --primary:                    #0049cc;
+  --primary-container:          #0b5fff;
+  --on-primary:                 #ffffff;
+  --on-primary-container:       #eff0ff;
+  --primary-fixed:              #dbe1ff;
+  --primary-fixed-dim:          #b5c4ff;
+  --on-primary-fixed:           #00164d;
+  --on-primary-fixed-variant:   #003cac;
+  --inverse-primary:            #b5c4ff;
+  --surface-tint:               #0051e0;
+
+  /* Secondary */
+  --secondary:                  #5d5c74;
+  --secondary-container:        #e2e0fc;
+  --on-secondary:               #ffffff;
+  --on-secondary-container:     #63627a;
+  --secondary-fixed:            #e2e0fc;
+  --secondary-fixed-dim:        #c6c4df;
+  --on-secondary-fixed:         #1a1a2e;
+  --on-secondary-fixed-variant: #45455b;
+
+  /* Tertiary */
+  --tertiary:                   #0d631b;
+  --tertiary-container:         #2e7d32;
+  --on-tertiary:                #ffffff;
+  --on-tertiary-container:      #cbffc2;
+  --tertiary-fixed:             #a3f69c;
+  --tertiary-fixed-dim:         #88d982;
+  --on-tertiary-fixed:          #002204;
+  --on-tertiary-fixed-variant:  #005312;
+
+  /* Error */
+  --error:                      #ba1a1a;
+  --error-container:            #ffdad6;
+  --on-error:                   #ffffff;
+  --on-error-container:         #93000a;
+
+  /* Background */
+  --background:                 #f8f9fb;
+  --on-background:              #191c1e;
+  --surface-variant:            #e0e3e5;
+
+  /* Card and border specifics */
+  --card-border:                var(--surface-container-high);
+  --header-bg:                  color-mix(in srgb, var(--surface) 85%, transparent);
+  --hero-glow:                  color-mix(in srgb, var(--primary-container) 12%, transparent);
+
+  /* Typography Families */
+  --font-display:   'Lexend', system-ui, sans-serif;
+  --font-body:      'Atkinson Hyperlegible Next', system-ui, sans-serif;
+  --font-mono:      'JetBrains Mono', monospace;
+
+  /* Typography Scale */
+  --text-display-hero:      56px;
+  --lh-display-hero:        64px;
+  --text-display-hero-mob:  36px;
+  --lh-display-hero-mob:    44px;
+
+  --text-headline-lg:       40px;
+  --lh-headline-lg:         48px;
+  --text-headline-lg-mob:   28px;
+  --lh-headline-lg-mob:     36px;
+
+  --text-headline-md:       28px;
+  --lh-headline-md:         36px;
+
+  --text-headline-sm:       20px;
+  --lh-headline-sm:         28px;
+
+  --text-body-lg:           18px;
+  --lh-body-lg:             28px;
+
+  --text-body-md:           16px;
+  --lh-body-md:             24px;
+
+  --text-body-sm:           14px;
+  --lh-body-sm:             20px;
+
+  --text-button:            16px;
+  --lh-button:              24px;
+
+  --text-status:            12px;
+  --lh-status:              16px;
+
+  /* Spacing */
+  --space-xs:     0.5rem;    /* 8px  */
+  --space-sm:     0.75rem;   /* 12px */
+  --space-md:     1rem;      /* 16px */
+  --space-lg:     1.5rem;    /* 24px */
+  --space-xl:     2.5rem;    /* 40px */
+  --gutter:       1.5rem;
+  --gutter-mob:   1rem;
+  --margin:       3rem;
+  --margin-mob:   1.25rem;
+
+  /* Border Radius */
+  --radius-sm:    0.25rem;   /* 4px  */
+  --radius:       0.5rem;    /* 8px  */
+  --radius-md:    0.75rem;   /* 12px */
+  --radius-lg:    1rem;      /* 16px */
+  --radius-xl:    1.5rem;    /* 24px */
+  --radius-2xl:   2rem;      /* 32px (rounded-3xl) */
+  --radius-full:  9999px;
+
+  /* Shadows */
+  --shadow-sm:   0 1px 4px rgba(26, 26, 46, 0.04);
+  --shadow-md:   0 2px 4px rgba(26, 26, 46, 0.04), 0 8px 24px rgba(26, 26, 46, 0.06);
+  --shadow-lg:   0 4px 12px rgba(26, 26, 46, 0.08), 0 12px 32px rgba(26, 26, 46, 0.10);
+  --shadow-xl:   0 8px 24px rgba(26, 26, 46, 0.10), 0 20px 48px rgba(26, 26, 46, 0.12);
+
+  /* Container */
+  --container-max: 1280px;
+  --nav-height: 80px;
+}
+
+/* ---------- Dark Theme Tokens ---------- */
+[data-theme="dark"] {
+  /* Surface */
+  --surface:                    #0d1117;
+  --surface-dim:                #080a0f;
+  --surface-bright:             #252b36;
+  --surface-container-lowest:   #131820;
+  --surface-container-low:      #171d27;
+  --surface-container:          #1d2430;
+  --surface-container-high:     #252d3a;
+  --surface-container-highest:  #2f3847;
+
+  /* On-surface */
+  --on-surface:                 #e6edf3;
+  --on-surface-variant:         #9da7b7;
+  --inverse-surface:            #e6edf3;
+  --inverse-on-surface:         #131820;
+
+  /* Outline */
+  --outline:                    #808a9d;
+  --outline-variant:            #2c3444;
+
+  /* Primary */
+  --primary:                    #589bf9;
+  --primary-container:          #3178f6;
+  --on-primary:                 #ffffff;
+  --on-primary-container:       #e8f0fe;
+  --primary-fixed:              #1e355b;
+  --primary-fixed-dim:          #172947;
+  --on-primary-fixed:           #d8e5ff;
+  --on-primary-fixed-variant:   #aecbff;
+  --inverse-primary:            #0049cc;
+  --surface-tint:               #589bf9;
+
+  /* Secondary */
+  --secondary:                  #a0a4b8;
+  --secondary-container:        #2b2f3e;
+  --on-secondary:               #ffffff;
+  --on-secondary-container:     #e0e3f5;
+  --secondary-fixed:            #2b2f3e;
+  --secondary-fixed-dim:        #202431;
+  --on-secondary-fixed:         #f0f2fa;
+  --on-secondary-fixed-variant: #c8cde0;
+
+  /* Tertiary */
+  --tertiary:                   #4ade80;
+  --tertiary-container:         #166534;
+  --on-tertiary:                #ffffff;
+  --on-tertiary-container:      #dcfce7;
+  --tertiary-fixed:             #1b4329;
+  --tertiary-fixed-dim:         #13311e;
+  --on-tertiary-fixed:          #bbf7d0;
+  --on-tertiary-fixed-variant:  #86efac;
+
+  /* Error */
+  --error:                      #f87171;
+  --error-container:            #7f1d1d;
+  --on-error:                   #ffffff;
+  --on-error-container:         #fecaca;
+
+  /* Background */
+  --background:                 #0d1117;
+  --on-background:              #e6edf3;
+  --surface-variant:            #252d3a;
+
+  /* Shadows for dark mode */
+  --shadow-sm:   0 1px 4px rgba(0, 0, 0, 0.35);
+  --shadow-md:   0 4px 14px rgba(0, 0, 0, 0.45);
+  --shadow-lg:   0 8px 24px rgba(0, 0, 0, 0.55);
+  --shadow-xl:   0 16px 40px rgba(0, 0, 0, 0.65);
+
+  /* Card and border specifics */
+  --card-border:                #252d3a;
+  --header-bg:                  color-mix(in srgb, var(--surface) 80%, transparent);
+  --hero-glow:                  color-mix(in srgb, var(--primary-container) 18%, transparent);
+}
+
+/* ---------- Reset & Base ---------- */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--surface);
+  color: var(--on-surface);
+  font-family: var(--font-body);
+  font-size: var(--text-body-md);
+  line-height: var(--lh-body-md);
+  overscroll-behavior: none;
+}
+
+#root {
+  width: 100%;
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Remove default scrollbar */
+::-webkit-scrollbar { display: none; }
+* { scrollbar-width: none; }
+
+/* Focus ring system */
+:focus-visible {
+  outline: 2px solid var(--primary-container);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* Material Symbols base */
+.material-symbols-outlined {
+  font-family: 'Material Symbols Outlined';
+  font-weight: normal;
+  font-style: normal;
+  font-size: 24px;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  -webkit-font-feature-settings: 'liga';
+  font-feature-settings: 'liga';
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+}
+
+img {
+  display: block;
+  max-width: 100%;
+}
+
+a {
+  text-decoration: none;
+  color: inherit;
+}
+
+/* ============================================================
+   ACCESSIBILITY FEATURE 1: TEXT SIZE SCALING MODES
+   ============================================================ */
+
+/* Normal (Default 100%) */
+[data-text-size="normal"] {
+  --text-scale-factor: 1;
+}
+
+/* Large (+18% scale) */
+[data-text-size="large"] {
+  --text-scale-factor: 1.18;
+
+  --text-display-hero:      64px;
+  --lh-display-hero:        74px;
+  --text-display-hero-mob:  42px;
+  --lh-display-hero-mob:    50px;
+
+  --text-headline-lg:       46px;
+  --lh-headline-lg:         54px;
+  --text-headline-lg-mob:   32px;
+  --lh-headline-lg-mob:     40px;
+
+  --text-headline-md:       32px;
+  --lh-headline-md:         40px;
+
+  --text-headline-sm:       23px;
+  --lh-headline-sm:         32px;
+
+  --text-body-lg:           21px;
+  --lh-body-lg:             32px;
+
+  --text-body-md:           19px;
+  --lh-body-md:             28px;
+
+  --text-body-sm:           16px;
+  --lh-body-sm:             24px;
+
+  --text-button:            18px;
+  --lh-button:              26px;
+  --text-button-sm:         16px;
+
+  --text-status:            14px;
+  --lh-status:              18px;
+}
+
+/* Extra Large (+35% scale) */
+[data-text-size="extra-large"] {
+  --text-scale-factor: 1.35;
+
+  --text-display-hero:      72px;
+  --lh-display-hero:        82px;
+  --text-display-hero-mob:  48px;
+  --lh-display-hero-mob:    56px;
+
+  --text-headline-lg:       52px;
+  --lh-headline-lg:         60px;
+  --text-headline-lg-mob:   36px;
+  --lh-headline-lg-mob:     46px;
+
+  --text-headline-md:       36px;
+  --lh-headline-md:         46px;
+
+  --text-headline-sm:       26px;
+  --lh-headline-sm:         36px;
+
+  --text-body-lg:           24px;
+  --lh-body-lg:             36px;
+
+  --text-body-md:           21px;
+  --lh-body-md:             32px;
+
+  --text-body-sm:           18px;
+  --lh-body-sm:             27px;
+
+  --text-button:            20px;
+  --lh-button:              28px;
+  --text-button-sm:         18px;
+
+  --text-status:            16px;
+  --lh-status:              22px;
+}
+
+/* Typography scaling for core elements when text size is increased */
+[data-text-size="large"] body,
+[data-text-size="large"] button,
+[data-text-size="large"] input,
+[data-text-size="large"] select,
+[data-text-size="large"] textarea {
+  font-size: var(--text-body-md);
+}
+
+[data-text-size="extra-large"] body,
+[data-text-size="extra-large"] button,
+[data-text-size="extra-large"] input,
+[data-text-size="extra-large"] select,
+[data-text-size="extra-large"] textarea {
+  font-size: var(--text-body-md);
+}
+
+[data-text-size="large"] .btn,
+[data-text-size="extra-large"] .btn {
+  min-height: 52px;
+  padding: 0.85rem 2.2rem;
+  font-size: var(--text-button);
+}
+
+[data-text-size="extra-large"] .btn {
+  min-height: 56px;
+  padding: 0.95rem 2.4rem;
+}
+
+[data-text-size="large"] .tag,
+[data-text-size="large"] .status-badge,
+[data-text-size="extra-large"] .tag,
+[data-text-size="extra-large"] .status-badge {
+  font-size: var(--text-body-sm);
+  padding: 5px 14px;
+}
+
+/* ============================================================
+   ACCESSIBILITY FEATURE 2: HIGH CONTRAST MODE
+   ============================================================ */
+
+/* High Contrast — Light Theme */
+[data-high-contrast="true"] {
+  --surface:                    #ffffff;
+  --surface-dim:                #e2e4e8;
+  --surface-bright:             #ffffff;
+  --surface-container-lowest:   #ffffff;
+  --surface-container-low:      #f4f6f8;
+  --surface-container:          #e6e9ee;
+  --surface-container-high:     #d5dae2;
+  --surface-container-highest:  #c2c8d2;
+
+  --on-surface:                 #000000;
+  --on-surface-variant:         #111827;
+  --inverse-surface:            #000000;
+  --inverse-on-surface:         #ffffff;
+
+  --outline:                    #000000;
+  --outline-variant:            #374151;
+
+  --primary:                    #002b80;
+  --primary-container:          #0044cc;
+  --on-primary:                 #ffffff;
+  --on-primary-container:       #ffffff;
+  --primary-fixed:              #001a4d;
+  --on-primary-fixed:           #ffffff;
+
+  --secondary:                  #2b2b3d;
+  --secondary-container:        #404058;
+  --on-secondary:               #ffffff;
+  --on-secondary-container:     #ffffff;
+
+  --tertiary:                   #004d13;
+  --tertiary-container:         #006b1a;
+  --on-tertiary:                #ffffff;
+  --on-tertiary-container:      #ffffff;
+
+  --error:                      #8c0000;
+  --error-container:            #b30000;
+  --on-error:                   #ffffff;
+  --on-error-container:         #ffffff;
+
+  --card-border:                #1f2937;
+  --shadow-sm:                  0 0 0 1px #1f2937;
+  --shadow-md:                  0 0 0 2px #1f2937;
+  --shadow-lg:                  0 0 0 2px #000000, 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+/* High Contrast — Dark Theme */
+[data-theme="dark"][data-high-contrast="true"],
+[data-high-contrast="true"][data-theme="dark"] {
+  --surface:                    #000000;
+  --surface-dim:                #05080c;
+  --surface-bright:             #161b22;
+  --surface-container-lowest:   #090d12;
+  --surface-container-low:      #0e131b;
+  --surface-container:          #151c27;
+  --surface-container-high:     #1d2634;
+  --surface-container-highest:  #283446;
+
+  --on-surface:                 #ffffff;
+  --on-surface-variant:         #f3f4f6;
+  --inverse-surface:            #ffffff;
+  --inverse-on-surface:         #000000;
+
+  --outline:                    #ffffff;
+  --outline-variant:            #9ca3af;
+
+  --primary:                    #60a5fa;
+  --primary-container:          #2563eb;
+  --on-primary:                 #ffffff;
+  --on-primary-container:       #ffffff;
+  --primary-fixed:              #93c5fd;
+  --on-primary-fixed:           #000000;
+
+  --secondary:                  #cbd5e1;
+  --secondary-container:        #334155;
+  --on-secondary:               #ffffff;
+  --on-secondary-container:     #ffffff;
+
+  --tertiary:                   #86efac;
+  --tertiary-container:         #15803d;
+  --on-tertiary:                #000000;
+  --on-tertiary-container:      #ffffff;
+
+  --error:                      #fca5a5;
+  --error-container:            #dc2626;
+  --on-error:                   #000000;
+  --on-error-container:         #ffffff;
+
+  --card-border:                #cbd5e1;
+  --shadow-sm:                  0 0 0 1px #cbd5e1;
+  --shadow-md:                  0 0 0 2px #cbd5e1;
+  --shadow-lg:                  0 0 0 2px #ffffff, 0 4px 16px rgba(255, 255, 255, 0.15);
+}
+
+/* Enhanced Focus & Borders in High Contrast Mode */
+[data-high-contrast="true"] :focus-visible {
+  outline: 3px solid var(--primary-container) !important;
+  outline-offset: 3px !important;
+  box-shadow: 0 0 0 2px var(--surface) !important;
+}
+
+[data-high-contrast="true"] .btn {
+  border: 2px solid currentColor;
+  font-weight: 700;
+}
+
+[data-high-contrast="true"] .btn--primary {
+  border-color: var(--on-primary);
+  box-shadow: 0 0 0 1px var(--primary-container);
+}
+
+[data-high-contrast="true"] .btn--secondary {
+  border: 2px solid var(--outline);
+  color: var(--on-surface);
+}
+
+[data-high-contrast="true"] .card,
+[data-high-contrast="true"] .assist-card,
+[data-high-contrast="true"] .settings-section,
+[data-high-contrast="true"] .hearing-control__card,
+[data-high-contrast="true"] .vision-panel,
+[data-high-contrast="true"] .hfa-voice-card,
+[data-high-contrast="true"] .hfa-camera-card {
+  border-width: 2px !important;
+  border-color: var(--card-border) !important;
+}
+
+[data-high-contrast="true"] input,
+[data-high-contrast="true"] select,
+[data-high-contrast="true"] textarea {
+  border: 2px solid var(--outline) !important;
+  color: var(--on-surface) !important;
+}
+
+[data-high-contrast="true"] .tag,
+[data-high-contrast="true"] .status-badge {
+  border: 1.5px solid currentColor;
+  font-weight: 700;
+}
+
+/* ============================================================
+   ACCESSIBILITY FEATURE 3: REDUCED MOTION MODE
+   ============================================================ */
+
+/* When explicit user toggle data-reduced-motion is true */
+[data-reduced-motion="true"] *,
+[data-reduced-motion="true"] *::before,
+[data-reduced-motion="true"] *::after {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+  scroll-behavior: auto !important;
+}
+
+/* System-level preference respect if user hasn't explicitly disabled */
+@media (prefers-reduced-motion: reduce) {
+  :root:not([data-reduced-motion="false"]) *,
+  :root:not([data-reduced-motion="false"]) *::before,
+  :root:not([data-reduced-motion="false"]) *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
