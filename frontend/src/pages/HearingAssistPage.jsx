@@ -6,7 +6,7 @@
 import { useState, useRef, useEffect } from 'react'
 import './HearingAssistPage.css'
 
-export default function HearingAssistPage({ onBack }) {
+export default function HearingAssistPage() {
   const streamRef = useRef(null)
   const audioContextRef = useRef(null)
   const analyserRef = useRef(null)

@@ -11,7 +11,7 @@ import './SettingsPage.css'
 
 export { DEFAULT_ACCESSIBILITY_SETTINGS as DEFAULT_SETTINGS }
 
-export default function SettingsPage({ onBack, onNavigate }) {
+export default function SettingsPage({ onBack }) {
   // Centralized application-wide accessibility state
   const { settings, updateSetting: ctxUpdateSetting, resetSettings: ctxResetSettings } = useAccessibility()
 

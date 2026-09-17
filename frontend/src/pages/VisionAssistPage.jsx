@@ -1,55 +1,284 @@
 /**
  * VisionX — Vision Assist Page
- * Main interface for AI-powered visual assistance with live camera & image/document upload
+ * Main interface for AI-powered visual assistance with live camera & image/document upload.
  */
 
-import { useState, useRef, useEffect } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import './VisionAssistPage.css'
 
-export default function VisionAssistPage({ onBack }) {
+const BACKEND_URL = 'http://localhost:8000'
+
+export default function VisionAssistPage() {
   const videoRef = useRef(null)
   const streamRef = useRef(null)
   const fileInputRef = useRef(null)
 
+  const mediaRecorderRef = useRef(null)
+  const audioChunksRef = useRef([])
+  const capturedAudioRef = useRef(null)
+  const audioPlayerRef = useRef(null)
+
   const [cameraActive, setCameraActive] = useState(false)
   const [cameraLoading, setCameraLoading] = useState(false)
   const [cameraError, setCameraError] = useState(null)
+
+  const [isRecording, setIsRecording] = useState(false)
+  const [isAnalyzing, setIsAnalyzing] = useState(false)
+  const [analysisError, setAnalysisError] = useState(null)
+  const [assistantAudioUrl, setAssistantAudioUrl] = useState(null)
+  const [assistantMessage, setAssistantMessage] = useState('')
 
   const [uploadedFile, setUploadedFile] = useState(null)
   const [previewUrl, setPreviewUrl] = useState(null)
   const [fileError, setFileError] = useState(null)
   const [isFileConfirmed, setIsFileConfirmed] = useState(false)
 
-  const [hasSampleInsight, setHasSampleInsight] = useState(true)
-
-  // Clean up camera streams and preview object URLs on unmount
   useEffect(() => {
     return () => {
       if (streamRef.current) {
         streamRef.current.getTracks().forEach((track) => track.stop())
         streamRef.current = null
       }
+
+      if (
+        mediaRecorderRef.current &&
+        mediaRecorderRef.current.state !== 'inactive'
+      ) {
+        mediaRecorderRef.current.stop()
+      }
+
       if (previewUrl) {
         URL.revokeObjectURL(previewUrl)
       }
-    }
-  }, [previewUrl])
 
-  // Start real device camera via navigator.mediaDevices.getUserMedia
+      if (assistantAudioUrl) {
+        URL.revokeObjectURL(assistantAudioUrl)
+      }
+    }
+  }, [previewUrl, assistantAudioUrl])
+
+  const startRecording = async () => {
+    setAnalysisError(null)
+
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setAnalysisError(
+        'Microphone access is not supported by your browser.'
+      )
+      return
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: true,
+      })
+
+      const mimeType = MediaRecorder.isTypeSupported('audio/webm')
+        ? 'audio/webm'
+        : ''
+
+      const recorder = new MediaRecorder(
+        stream,
+        mimeType ? { mimeType } : undefined
+      )
+
+      audioChunksRef.current = []
+
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data)
+        }
+      }
+
+      recorder.onstop = () => {
+        capturedAudioRef.current = new Blob(
+          audioChunksRef.current,
+          {
+            type: recorder.mimeType || 'audio/webm',
+          }
+        )
+
+        stream.getTracks().forEach((track) => track.stop())
+      }
+
+      mediaRecorderRef.current = recorder
+      recorder.start()
+      setIsRecording(true)
+    } catch (err) {
+      console.error('Microphone access error:', err)
+      setAnalysisError(
+        'Unable to access the microphone. Please check browser permissions.'
+      )
+    }
+  }
+
+  const stopRecording = () => {
+    if (
+      mediaRecorderRef.current &&
+      mediaRecorderRef.current.state !== 'inactive'
+    ) {
+      mediaRecorderRef.current.stop()
+    }
+
+    setIsRecording(false)
+  }
+
+  const captureCameraFrame = () => {
+    if (!videoRef.current || !cameraActive) {
+      return null
+    }
+
+    const video = videoRef.current
+
+    if (!video.videoWidth || !video.videoHeight) {
+      return null
+    }
+
+    const canvas = document.createElement('canvas')
+    canvas.width = video.videoWidth
+    canvas.height = video.videoHeight
+
+    const context = canvas.getContext('2d')
+
+    if (!context) {
+      return null
+    }
+
+    context.drawImage(video, 0, 0, canvas.width, canvas.height)
+
+    return new Promise((resolve) => {
+      canvas.toBlob(resolve, 'image/jpeg', 0.9)
+    })
+  }
+
+  const getRecordedAudio = () =>
+    new Promise((resolve) => {
+      if (
+        !mediaRecorderRef.current ||
+        mediaRecorderRef.current.state === 'inactive'
+      ) {
+        resolve(capturedAudioRef.current)
+        return
+      }
+
+      const recorder = mediaRecorderRef.current
+
+      recorder.addEventListener(
+        'stop',
+        () => {
+          resolve(capturedAudioRef.current)
+        },
+        { once: true }
+      )
+
+      recorder.stop()
+    })
+
+  const analyzeVision = async (imageBlob, audioBlob) => {
+    setAnalysisError(null)
+    setIsAnalyzing(true)
+    setAssistantMessage('')
+
+    try {
+      if (!audioBlob) {
+        throw new Error('Please record a question first.')
+      }
+
+      if (!imageBlob) {
+        throw new Error('No image is available for analysis.')
+      }
+
+      const formData = new FormData()
+
+      formData.append('audio', audioBlob, 'question.webm')
+      formData.append('image', imageBlob, 'camera-frame.jpg')
+
+      const response = await fetch(
+        `${BACKEND_URL}/api/assistant/analyze`,
+        {
+          method: 'POST',
+          body: formData,
+        }
+      )
+
+      if (!response.ok) {
+        throw new Error(
+          `Assistant request failed with status ${response.status}.`
+        )
+      }
+
+      const audioData = await response.blob()
+
+      const audioUrl = URL.createObjectURL(audioData)
+
+      setAssistantAudioUrl((previousUrl) => {
+        if (previousUrl) {
+          URL.revokeObjectURL(previousUrl)
+        }
+        return audioUrl
+      })
+
+      setAssistantMessage('VisionX analysis complete.')
+
+      if (audioPlayerRef.current) {
+        audioPlayerRef.current.src = audioUrl
+        audioPlayerRef.current.load()
+
+        try {
+          await audioPlayerRef.current.play()
+        } catch (err) {
+          console.error('Audio playback error:', err)
+        }
+      }
+
+      capturedAudioRef.current = null
+    } catch (err) {
+      console.error('Vision analysis error:', err)
+      setAnalysisError(
+        err.message || 'VisionX could not process the request.'
+      )
+    } finally {
+      setIsAnalyzing(false)
+    }
+  }
+
+  const handleAskVision = async () => {
+    if (isAnalyzing) {
+      return
+    }
+
+    if (!isRecording) {
+      await startRecording()
+      return
+    }
+
+    const audioBlob = await getRecordedAudio()
+
+    const imageBlob = cameraActive
+      ? await captureCameraFrame()
+      : uploadedFile
+
+    await analyzeVision(imageBlob, audioBlob)
+  }
+
   const handleStartCamera = async () => {
     setCameraError(null)
     setFileError(null)
+    setAnalysisError(null)
 
-    // Clear any uploaded file when starting camera
     if (uploadedFile) {
-      if (previewUrl) URL.revokeObjectURL(previewUrl)
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl)
+      }
+
       setUploadedFile(null)
       setPreviewUrl(null)
       setIsFileConfirmed(false)
     }
 
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      setCameraError('Camera access is not supported by your browser or environment.')
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setCameraError(
+        'Camera access is not supported by your browser or environment.'
+      )
       return
     }
 
@@ -57,6 +286,7 @@ export default function VisionAssistPage({ onBack }) {
       setCameraLoading(true)
 
       let stream
+
       try {
         stream = await navigator.mediaDevices.getUserMedia({
           video: {
@@ -66,7 +296,7 @@ export default function VisionAssistPage({ onBack }) {
           },
           audio: false,
         })
-      } catch (firstErr) {
+      } catch {
         stream = await navigator.mediaDevices.getUserMedia({
           video: true,
           audio: false,
@@ -77,10 +307,11 @@ export default function VisionAssistPage({ onBack }) {
 
       if (videoRef.current) {
         videoRef.current.srcObject = stream
+
         try {
           await videoRef.current.play()
-        } catch (playErr) {
-          console.error('Video play error:', playErr)
+        } catch (err) {
+          console.error('Video play error:', err)
         }
       }
 
@@ -88,6 +319,7 @@ export default function VisionAssistPage({ onBack }) {
       setCameraLoading(false)
     } catch (err) {
       console.error('Camera access error:', err)
+
       setCameraLoading(false)
       setCameraActive(false)
 
@@ -96,24 +328,43 @@ export default function VisionAssistPage({ onBack }) {
         streamRef.current = null
       }
 
-      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+      if (
+        err.name === 'NotAllowedError' ||
+        err.name === 'PermissionDeniedError'
+      ) {
         setCameraError(
           'Camera access was denied. Please allow camera permissions in your browser address bar to use Vision Assist.'
         )
-      } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+      } else if (
+        err.name === 'NotFoundError' ||
+        err.name === 'DevicesNotFoundError'
+      ) {
         setCameraError('No camera device was detected on your system.')
-      } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
-        setCameraError('Your camera is currently in use by another application or browser tab.')
+      } else if (
+        err.name === 'NotReadableError' ||
+        err.name === 'TrackStartError'
+      ) {
+        setCameraError(
+          'Your camera is currently in use by another application or browser tab.'
+        )
       } else if (err.name === 'OverconstrainedError') {
-        setCameraError('The requested camera settings are not supported by your camera hardware.')
+        setCameraError(
+          'The requested camera settings are not supported by your camera hardware.'
+        )
       } else {
-        setCameraError('Unable to start the camera. Please check your permissions and try again.')
+        setCameraError(
+          'Unable to start the camera. Please check your permissions and try again.'
+        )
       }
     }
   }
 
-  // Stop camera tracks cleanly and reset video feed
   const handleStopCamera = () => {
+    if (isRecording) {
+      stopRecording()
+      capturedAudioRef.current = null
+    }
+
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((track) => track.stop())
       streamRef.current = null
@@ -127,24 +378,26 @@ export default function VisionAssistPage({ onBack }) {
     setCameraLoading(false)
   }
 
-  // Open native File Explorer
   const handleOpenFileDialog = () => {
     setFileError(null)
     setCameraError(null)
+
     if (fileInputRef.current) {
       fileInputRef.current.click()
     }
   }
 
-  // Handle file selection from File Explorer
-  const handleFileChange = (e) => {
-    const file = e.target.files && e.target.files[0]
-    if (!file) return
+  const handleFileChange = (event) => {
+    const file = event.target.files?.[0]
+
+    if (!file) {
+      return
+    }
 
     setFileError(null)
     setCameraError(null)
+    setAnalysisError(null)
 
-    // Stop camera if active
     if (cameraActive) {
       handleStopCamera()
     }
@@ -156,7 +409,9 @@ export default function VisionAssistPage({ onBack }) {
       'image/webp',
       'application/pdf',
     ]
+
     const fileName = file.name.toLowerCase()
+
     const isValidExtension =
       fileName.endsWith('.jpg') ||
       fileName.endsWith('.jpeg') ||
@@ -164,102 +419,170 @@ export default function VisionAssistPage({ onBack }) {
       fileName.endsWith('.webp') ||
       fileName.endsWith('.pdf')
 
-    if (!validMimeTypes.includes(file.type) && !isValidExtension) {
+    if (
+      !validMimeTypes.includes(file.type) &&
+      !isValidExtension
+    ) {
       setFileError(
         'Unsupported file format. Please select a valid image (JPG, PNG, WebP) or PDF document.'
       )
-      if (fileInputRef.current) fileInputRef.current.value = ''
+
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
+
       return
     }
 
-    // Revoke previous URL if any
     if (previewUrl) {
       URL.revokeObjectURL(previewUrl)
     }
 
-    const isPdf = file.type === 'application/pdf' || fileName.endsWith('.pdf')
+    const isPdf =
+      file.type === 'application/pdf' ||
+      fileName.endsWith('.pdf')
+
     let objectUrl = null
 
     if (!isPdf) {
       try {
         objectUrl = URL.createObjectURL(file)
-      } catch (err) {
-        setFileError('Unable to generate preview for this image. Please try another file.')
+      } catch {
+        setFileError(
+          'Unable to generate preview for this image. Please try another file.'
+        )
         return
       }
     }
 
-    // Reset confirmation state for new file
     setIsFileConfirmed(false)
     setUploadedFile(file)
     setPreviewUrl(objectUrl)
+    setAssistantMessage('')
 
-    if (fileInputRef.current) fileInputRef.current.value = ''
-  }
-
-  // Handle user confirmation of selected file for AI analysis
-  const handleConfirmAndAnalyze = () => {
-    // BACKEND REQUIRED: Upload the confirmed image/document to the AI vision processing API and receive accessibility-friendly analysis results.
-    setIsFileConfirmed(true)
-  }
-
-  // Clear/remove currently selected file
-  const handleClearFile = () => {
-    if (previewUrl) {
-      URL.revokeObjectURL(previewUrl)
-    }
-    setUploadedFile(null)
-    setPreviewUrl(null)
-    setFileError(null)
-    setIsFileConfirmed(false)
     if (fileInputRef.current) {
       fileInputRef.current.value = ''
     }
   }
 
-  // Helpers for file metadata
+  const handleConfirmAndAnalyze = () => {
+    setIsFileConfirmed(true)
+    setAnalysisError(null)
+  }
+
+  const handleClearFile = () => {
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl)
+    }
+
+    setUploadedFile(null)
+    setPreviewUrl(null)
+    setFileError(null)
+    setIsFileConfirmed(false)
+    setAssistantMessage('')
+    capturedAudioRef.current = null
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
+  }
+
   const formatFileSize = (bytes) => {
-    if (!bytes || bytes === 0) return '0 B'
+    if (!bytes || bytes === 0) {
+      return '0 B'
+    }
+
     const k = 1024
     const sizes = ['B', 'KB', 'MB', 'GB']
     const i = Math.floor(Math.log(bytes) / Math.log(k))
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i]
+
+    return (
+      parseFloat((bytes / Math.pow(k, i)).toFixed(1)) +
+      ' ' +
+      sizes[i]
+    )
   }
 
   const getFileTypeLabel = (file) => {
-    if (!file) return ''
+    if (!file) {
+      return ''
+    }
+
     const name = file.name.toLowerCase()
-    if (file.type === 'application/pdf' || name.endsWith('.pdf')) return 'PDF Document'
-    if (file.type === 'image/png' || name.endsWith('.png')) return 'PNG Image'
-    if (file.type === 'image/jpeg' || file.type === 'image/jpg' || name.endsWith('.jpg') || name.endsWith('.jpeg'))
+
+    if (
+      file.type === 'application/pdf' ||
+      name.endsWith('.pdf')
+    ) {
+      return 'PDF Document'
+    }
+
+    if (
+      file.type === 'image/png' ||
+      name.endsWith('.png')
+    ) {
+      return 'PNG Image'
+    }
+
+    if (
+      file.type === 'image/jpeg' ||
+      file.type === 'image/jpg' ||
+      name.endsWith('.jpg') ||
+      name.endsWith('.jpeg')
+    ) {
       return 'JPEG Image'
-    if (file.type === 'image/webp' || name.endsWith('.webp')) return 'WebP Image'
+    }
+
+    if (
+      file.type === 'image/webp' ||
+      name.endsWith('.webp')
+    ) {
+      return 'WebP Image'
+    }
+
     return file.type || 'Document File'
   }
 
   const isPdf =
     uploadedFile &&
-    (uploadedFile.type === 'application/pdf' || uploadedFile.name.toLowerCase().endsWith('.pdf'))
+    (
+      uploadedFile.type === 'application/pdf' ||
+      uploadedFile.name.toLowerCase().endsWith('.pdf')
+    )
 
   return (
     <main className="main vision-assist-page" id="main-content">
-      <div className="vision-assist__ambient" aria-hidden="true" />
+      <div
+        className="vision-assist__ambient"
+        aria-hidden="true"
+      />
+
       <div className="container vision-assist__inner">
-        {/* Page Header */}
+        <audio
+          ref={audioPlayerRef}
+          src={assistantAudioUrl || undefined}
+          hidden
+        />
+
         <header className="vision-assist__header">
           <div className="vision-assist__badge" role="status">
-            <span className="vision-assist__badge-dot" aria-hidden="true" />
+            <span
+              className="vision-assist__badge-dot"
+              aria-hidden="true"
+            />
             <span>Vision Assist Modality</span>
           </div>
+
           <h1 className="vision-assist__title">
             Understand your surroundings
           </h1>
+
           <p className="vision-assist__subtitle">
-            Use VisionX to understand objects, people, and important details around you.
+            Use VisionX to understand objects, people, and important
+            details around you.
           </p>
         </header>
 
-        {/* Hidden Native File Input */}
         <input
           type="file"
           ref={fileInputRef}
@@ -270,70 +593,91 @@ export default function VisionAssistPage({ onBack }) {
           aria-label="Upload image or document file"
         />
 
-        {/* Main Workspace Layout */}
         <div className="vision-assist__layout">
-          {/* Central Camera / Visual Area */}
           <section
-            className={`vision-viewport ${cameraActive ? 'vision-viewport--live' : ''} ${
-              uploadedFile ? 'vision-viewport--file-loaded' : ''
+            className={`vision-viewport ${
+              cameraActive ? 'vision-viewport--live' : ''
+            } ${
+              uploadedFile
+                ? 'vision-viewport--file-loaded'
+                : ''
             }`}
             aria-labelledby="viewport-title"
           >
             <div className="vision-viewport__header">
-              <div className="vision-viewport__status" role="status" aria-live="polite">
+              <div
+                className="vision-viewport__status"
+                role="status"
+                aria-live="polite"
+              >
                 <span
                   className={`vision-viewport__status-dot ${
                     cameraActive
                       ? 'vision-viewport__status-dot--live'
                       : uploadedFile
-                      ? isFileConfirmed
-                        ? 'vision-viewport__status-dot--confirmed'
-                        : 'vision-viewport__status-dot--file'
-                      : ''
+                        ? isFileConfirmed
+                          ? 'vision-viewport__status-dot--confirmed'
+                          : 'vision-viewport__status-dot--file'
+                        : ''
                   }`}
                   aria-hidden="true"
                 />
+
                 <span className="vision-viewport__status-text">
                   {cameraLoading
                     ? 'Connecting Camera...'
-                    : cameraActive
-                    ? 'Camera Live'
-                    : uploadedFile
-                    ? isFileConfirmed
-                      ? 'Ready for Analysis'
-                      : isPdf
-                      ? 'PDF Document Selected'
-                      : 'Image File Selected'
-                    : cameraError
-                    ? 'Camera Unavailable'
-                    : fileError
-                    ? 'Upload Error'
-                    : 'Optical Sensor Ready'}
+                    : isAnalyzing
+                      ? 'Analyzing...'
+                      : isRecording
+                        ? 'Listening...'
+                        : cameraActive
+                          ? 'Camera Live'
+                          : uploadedFile
+                            ? isFileConfirmed
+                              ? 'Ready for Analysis'
+                              : isPdf
+                                ? 'PDF Document Selected'
+                                : 'Image File Selected'
+                            : cameraError
+                              ? 'Camera Unavailable'
+                              : fileError
+                                ? 'Upload Error'
+                                : 'Optical Sensor Ready'}
                 </span>
               </div>
-              <div className="vision-viewport__lens-tag" aria-hidden="true">
+
+              <div
+                className="vision-viewport__lens-tag"
+                aria-hidden="true"
+              >
                 {cameraActive
-                  ? 'Live Video Feed'
+                  ? isRecording
+                    ? 'Recording Question'
+                    : isAnalyzing
+                      ? 'Processing'
+                      : 'Live Video Feed'
                   : uploadedFile
-                  ? isFileConfirmed
-                    ? `Ready • ${getFileTypeLabel(uploadedFile)}`
-                    : `Preview • ${getFileTypeLabel(uploadedFile)}`
-                  : '1080p • 60 FPS Field'}
+                    ? isFileConfirmed
+                      ? `Ready • ${getFileTypeLabel(uploadedFile)}`
+                      : `Preview • ${getFileTypeLabel(uploadedFile)}`
+                    : '1080p • Live Field'}
               </div>
             </div>
 
             <div className="vision-viewport__screen">
-              {/* Real Video Element for Live Camera Stream */}
               <video
                 ref={videoRef}
                 autoPlay
                 playsInline
                 muted
-                className={`vision-viewport__video ${cameraActive ? 'vision-viewport__video--active' : ''}`}
+                className={`vision-viewport__video ${
+                  cameraActive
+                    ? 'vision-viewport__video--active'
+                    : ''
+                }`}
                 aria-label="Live camera viewfinder feed"
               />
 
-              {/* Uploaded Image Preview */}
               {uploadedFile && !isPdf && previewUrl && (
                 <div className="vision-viewport__image-container">
                   <img
@@ -341,9 +685,16 @@ export default function VisionAssistPage({ onBack }) {
                     alt={`Selected preview for visual assistance: ${uploadedFile.name}`}
                     className="vision-viewport__image-preview"
                   />
+
                   {isFileConfirmed && (
-                    <div className="vision-viewport__ready-pill" role="status">
-                      <span className="material-symbols-outlined" aria-hidden="true">
+                    <div
+                      className="vision-viewport__ready-pill"
+                      role="status"
+                    >
+                      <span
+                        className="material-symbols-outlined"
+                        aria-hidden="true"
+                      >
                         task_alt
                       </span>
                       <span>Ready for Analysis</span>
@@ -352,25 +703,50 @@ export default function VisionAssistPage({ onBack }) {
                 </div>
               )}
 
-              {/* Uploaded PDF / Document Card View */}
               {uploadedFile && isPdf && (
-                <div className="vision-viewport__doc-preview" role="region" aria-label="Loaded PDF Document">
-                  <div className="vision-viewport__doc-icon-wrap" aria-hidden="true">
-                    <span className="material-symbols-outlined">picture_as_pdf</span>
+                <div
+                  className="vision-viewport__doc-preview"
+                  role="region"
+                  aria-label="Loaded PDF Document"
+                >
+                  <div
+                    className="vision-viewport__doc-icon-wrap"
+                    aria-hidden="true"
+                  >
+                    <span className="material-symbols-outlined">
+                      picture_as_pdf
+                    </span>
                   </div>
-                  <h3 className="vision-viewport__doc-title">{uploadedFile.name}</h3>
+
+                  <h3 className="vision-viewport__doc-title">
+                    {uploadedFile.name}
+                  </h3>
+
                   <div className="vision-viewport__doc-meta">
-                    <span className="tag tag--pdf">PDF Document</span>
-                    <span>{formatFileSize(uploadedFile.size)}</span>
+                    <span className="tag tag--pdf">
+                      PDF Document
+                    </span>
+                    <span>
+                      {formatFileSize(uploadedFile.size)}
+                    </span>
                   </div>
+
                   <p
                     className={`vision-viewport__doc-status ${
-                      isFileConfirmed ? 'vision-viewport__doc-status--confirmed' : ''
+                      isFileConfirmed
+                        ? 'vision-viewport__doc-status--confirmed'
+                        : ''
                     }`}
                   >
-                    <span className="material-symbols-outlined" aria-hidden="true">
-                      {isFileConfirmed ? 'task_alt' : 'touch_app'}
+                    <span
+                      className="material-symbols-outlined"
+                      aria-hidden="true"
+                    >
+                      {isFileConfirmed
+                        ? 'task_alt'
+                        : 'touch_app'}
                     </span>
+
                     {isFileConfirmed
                       ? 'Ready for Analysis'
                       : 'File selected — click Confirm & Analyze'}
@@ -378,86 +754,159 @@ export default function VisionAssistPage({ onBack }) {
                 </div>
               )}
 
-              {/* Target / Focus reticle aesthetic */}
-              <div className="vision-viewport__reticle" aria-hidden="true">
+              <div
+                className="vision-viewport__reticle"
+                aria-hidden="true"
+              >
                 <span className="reticle-corner reticle-corner--tl" />
                 <span className="reticle-corner reticle-corner--tr" />
                 <span className="reticle-corner reticle-corner--bl" />
                 <span className="reticle-corner reticle-corner--br" />
               </div>
 
-              {/* Camera Error Message Banner */}
               {cameraError && (
-                <div className="vision-viewport__error-banner" role="alert">
-                  <span className="material-symbols-outlined vision-viewport__error-icon" aria-hidden="true">
+                <div
+                  className="vision-viewport__error-banner"
+                  role="alert"
+                >
+                  <span
+                    className="material-symbols-outlined vision-viewport__error-icon"
+                    aria-hidden="true"
+                  >
                     videocam_off
                   </span>
+
                   <div className="vision-viewport__error-body">
-                    <strong className="vision-viewport__error-title">Camera Notice</strong>
-                    <p className="vision-viewport__error-desc">{cameraError}</p>
+                    <strong className="vision-viewport__error-title">
+                      Camera Notice
+                    </strong>
+
+                    <p className="vision-viewport__error-desc">
+                      {cameraError}
+                    </p>
                   </div>
+
                   <button
                     type="button"
                     className="btn btn--secondary btn--sm vision-viewport__error-dismiss"
                     onClick={() => setCameraError(null)}
-                    aria-label="Dismiss camera notice"
                   >
                     Dismiss
                   </button>
                 </div>
               )}
 
-              {/* File Error Message Banner */}
               {fileError && (
-                <div className="vision-viewport__error-banner" role="alert">
-                  <span className="material-symbols-outlined vision-viewport__error-icon" aria-hidden="true">
+                <div
+                  className="vision-viewport__error-banner"
+                  role="alert"
+                >
+                  <span
+                    className="material-symbols-outlined vision-viewport__error-icon"
+                    aria-hidden="true"
+                  >
                     error_outline
                   </span>
+
                   <div className="vision-viewport__error-body">
-                    <strong className="vision-viewport__error-title">File Notice</strong>
-                    <p className="vision-viewport__error-desc">{fileError}</p>
+                    <strong className="vision-viewport__error-title">
+                      File Notice
+                    </strong>
+
+                    <p className="vision-viewport__error-desc">
+                      {fileError}
+                    </p>
                   </div>
+
                   <button
                     type="button"
                     className="btn btn--secondary btn--sm vision-viewport__error-dismiss"
                     onClick={() => setFileError(null)}
-                    aria-label="Dismiss file notice"
                   >
                     Dismiss
                   </button>
                 </div>
               )}
 
-              {/* Inactive Initial Empty State */}
+              {analysisError && (
+                <div
+                  className="vision-viewport__error-banner"
+                  role="alert"
+                >
+                  <span
+                    className="material-symbols-outlined vision-viewport__error-icon"
+                    aria-hidden="true"
+                  >
+                    error_outline
+                  </span>
+
+                  <div className="vision-viewport__error-body">
+                    <strong className="vision-viewport__error-title">
+                      VisionX Notice
+                    </strong>
+
+                    <p className="vision-viewport__error-desc">
+                      {analysisError}
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    className="btn btn--secondary btn--sm vision-viewport__error-dismiss"
+                    onClick={() => setAnalysisError(null)}
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              )}
+
               {!cameraActive && !uploadedFile && (
                 <div className="vision-viewport__empty-state">
-                  <div className="vision-viewport__icon-wrap" aria-hidden="true">
+                  <div
+                    className="vision-viewport__icon-wrap"
+                    aria-hidden="true"
+                  >
                     <span className="material-symbols-outlined">
-                      {cameraLoading ? 'hourglass_top' : 'center_focus_strong'}
+                      {cameraLoading
+                        ? 'hourglass_top'
+                        : 'center_focus_strong'}
                     </span>
                   </div>
-                  <h2 className="vision-viewport__empty-title" id="viewport-title">
-                    {cameraLoading ? 'Starting camera stream...' : 'Ready to understand your surroundings'}
+
+                  <h2
+                    className="vision-viewport__empty-title"
+                    id="viewport-title"
+                  >
+                    {cameraLoading
+                      ? 'Starting camera stream...'
+                      : 'Ready to understand your surroundings'}
                   </h2>
+
                   <p className="vision-viewport__empty-desc">
                     {cameraLoading
                       ? 'Please accept the browser camera prompt to begin.'
                       : 'Start your camera or upload an image to begin.'}
                   </p>
 
-                  {/* Initial Controls */}
                   <div className="vision-viewport__actions">
                     <button
                       type="button"
                       className="btn btn--primary vision-viewport__btn"
                       onClick={handleStartCamera}
                       disabled={cameraLoading}
-                      aria-label="Start Camera feed"
                     >
-                      <span className="material-symbols-outlined" aria-hidden="true">
+                      <span
+                        className="material-symbols-outlined"
+                        aria-hidden="true"
+                      >
                         photo_camera
                       </span>
-                      <span>{cameraLoading ? 'Starting...' : 'Start Camera'}</span>
+
+                      <span>
+                        {cameraLoading
+                          ? 'Starting...'
+                          : 'Start Camera'}
+                      </span>
                     </button>
 
                     <button
@@ -465,50 +914,96 @@ export default function VisionAssistPage({ onBack }) {
                       className="btn btn--secondary vision-viewport__btn"
                       onClick={handleOpenFileDialog}
                       disabled={cameraLoading}
-                      aria-label="Open File Explorer to upload image or document"
                     >
-                      <span className="material-symbols-outlined" aria-hidden="true">
+                      <span
+                        className="material-symbols-outlined"
+                        aria-hidden="true"
+                      >
                         upload_file
                       </span>
+
                       <span>Upload Image</span>
                     </button>
                   </div>
                 </div>
               )}
 
-              {/* Live Overlay Controls when Camera is Running */}
               {cameraActive && (
-                <div className="vision-viewport__live-hud" role="region" aria-label="Camera Controls">
+                <div
+                  className="vision-viewport__live-hud"
+                  role="region"
+                  aria-label="Camera Controls"
+                >
+                  <button
+                    type="button"
+                    className="btn btn--primary vision-viewport__confirm-btn"
+                    onClick={handleAskVision}
+                    disabled={isAnalyzing}
+                    aria-label={
+                      isRecording
+                        ? 'Stop recording and analyze'
+                        : 'Ask VisionX a question'
+                    }
+                  >
+                    <span
+                      className="material-symbols-outlined"
+                      aria-hidden="true"
+                    >
+                      {isRecording ? 'stop' : 'mic'}
+                    </span>
+
+                    <span>
+                      {isAnalyzing
+                        ? 'Analyzing...'
+                        : isRecording
+                          ? 'Stop & Analyze'
+                          : 'Ask VisionX'}
+                    </span>
+                  </button>
+
                   <button
                     type="button"
                     className="btn btn--secondary vision-viewport__stop-btn"
                     onClick={handleStopCamera}
-                    aria-label="Stop Camera feed"
+                    disabled={isRecording || isAnalyzing}
                   >
-                    <span className="material-symbols-outlined" aria-hidden="true">
+                    <span
+                      className="material-symbols-outlined"
+                      aria-hidden="true"
+                    >
                       videocam_off
                     </span>
+
                     <span>Stop Camera</span>
                   </button>
                 </div>
               )}
 
-              {/* Uploaded File Overlay Controls & Confirmation Step */}
               {uploadedFile && (
                 <div
                   className={`vision-viewport__file-hud ${
-                    isFileConfirmed ? 'vision-viewport__file-hud--confirmed' : ''
+                    isFileConfirmed
+                      ? 'vision-viewport__file-hud--confirmed'
+                      : ''
                   }`}
                   role="region"
-                  aria-label="Uploaded file controls and confirmation"
+                  aria-label="Uploaded file controls"
                 >
                   <div className="vision-viewport__file-info">
-                    <span className="material-symbols-outlined" aria-hidden="true">
+                    <span
+                      className="material-symbols-outlined"
+                      aria-hidden="true"
+                    >
                       {isPdf ? 'description' : 'image'}
                     </span>
-                    <span className="vision-viewport__file-name" title={uploadedFile.name}>
+
+                    <span
+                      className="vision-viewport__file-name"
+                      title={uploadedFile.name}
+                    >
                       {uploadedFile.name}
                     </span>
+
                     <span className="vision-viewport__file-size">
                       ({formatFileSize(uploadedFile.size)})
                     </span>
@@ -520,42 +1015,91 @@ export default function VisionAssistPage({ onBack }) {
                         type="button"
                         className="btn btn--primary btn--sm vision-viewport__confirm-btn"
                         onClick={handleConfirmAndAnalyze}
-                        aria-label="Confirm selected file and prepare for analysis"
                       >
-                        <span className="material-symbols-outlined" aria-hidden="true">
+                        <span
+                          className="material-symbols-outlined"
+                          aria-hidden="true"
+                        >
                           check_circle
                         </span>
+
                         <span>Confirm & Analyze</span>
                       </button>
                     ) : (
-                      <div className="vision-viewport__confirmed-badge" role="status">
-                        <span className="material-symbols-outlined" aria-hidden="true">
-                          task_alt
-                        </span>
-                        <span>Ready for Analysis</span>
-                      </div>
+                      <>
+                        <div
+                          className="vision-viewport__confirmed-badge"
+                          role="status"
+                        >
+                          <span
+                            className="material-symbols-outlined"
+                            aria-hidden="true"
+                          >
+                            task_alt
+                          </span>
+
+                          <span>Ready for Analysis</span>
+                        </div>
+
+                        {!isPdf && (
+                          <button
+                            type="button"
+                            className="btn btn--primary btn--sm vision-viewport__confirm-btn"
+                            onClick={handleAskVision}
+                            disabled={isAnalyzing}
+                          >
+                            <span
+                              className="material-symbols-outlined"
+                              aria-hidden="true"
+                            >
+                              {isRecording ? 'stop' : 'mic'}
+                            </span>
+
+                            <span>
+                              {isAnalyzing
+                                ? 'Analyzing...'
+                                : isRecording
+                                  ? 'Stop & Analyze'
+                                  : 'Ask VisionX'}
+                            </span>
+                          </button>
+                        )}
+                      </>
                     )}
 
                     <button
                       type="button"
                       className="btn btn--secondary btn--sm vision-viewport__file-btn"
                       onClick={handleOpenFileDialog}
-                      aria-label="Choose a different image or document"
+                      disabled={isAnalyzing}
                     >
-                      <span className="material-symbols-outlined" aria-hidden="true">
+                      <span
+                        className="material-symbols-outlined"
+                        aria-hidden="true"
+                      >
                         sync
                       </span>
-                      <span>{isFileConfirmed ? 'Change File' : 'Change'}</span>
+
+                      <span>
+                        {isFileConfirmed
+                          ? 'Change File'
+                          : 'Change'}
+                      </span>
                     </button>
+
                     <button
                       type="button"
                       className="btn btn--secondary btn--sm vision-viewport__file-btn vision-viewport__file-btn--clear"
                       onClick={handleClearFile}
-                      aria-label="Remove selected file"
+                      disabled={isAnalyzing}
                     >
-                      <span className="material-symbols-outlined" aria-hidden="true">
+                      <span
+                        className="material-symbols-outlined"
+                        aria-hidden="true"
+                      >
                         close
                       </span>
+
                       <span>Remove</span>
                     </button>
                   </div>
@@ -565,19 +1109,28 @@ export default function VisionAssistPage({ onBack }) {
 
             <div className="vision-viewport__footer">
               <span className="vision-viewport__hint">
-                <span className="material-symbols-outlined" aria-hidden="true">info</span>
-                {cameraActive
-                  ? 'Camera active. Frame is positioned for live environmental awareness.'
-                  : uploadedFile
-                  ? isFileConfirmed
-                    ? 'File confirmed. Ready for AI accessibility analysis once connected to processing engine.'
-                    : 'File preview loaded. Review and click "Confirm & Analyze" to prepare file for analysis.'
-                  : 'Supported formats: JPG, PNG, WebP images and PDF documents.'}
+                <span
+                  className="material-symbols-outlined"
+                  aria-hidden="true"
+                >
+                  info
+                </span>
+
+                {isRecording
+                  ? 'Listening. Ask VisionX what you want to know about the scene.'
+                  : isAnalyzing
+                    ? 'VisionX is processing your question and visual information.'
+                    : cameraActive
+                      ? 'Camera active. Click Ask VisionX, speak your question, then click Stop & Analyze.'
+                      : uploadedFile
+                        ? isFileConfirmed
+                          ? 'Image confirmed. Click Ask VisionX and speak your question.'
+                          : 'File preview loaded. Review and click Confirm & Analyze.'
+                        : 'Supported formats: JPG, PNG, WebP images and PDF documents.'}
               </span>
             </div>
           </section>
 
-          {/* Result Section */}
           <section
             className="vision-result"
             aria-labelledby="vision-result-title"
@@ -585,86 +1138,127 @@ export default function VisionAssistPage({ onBack }) {
             <div className="vision-result__card">
               <div className="vision-result__header">
                 <div className="vision-result__title-wrap">
-                  <span className="material-symbols-outlined vision-result__icon" aria-hidden="true">
+                  <span
+                    className="material-symbols-outlined vision-result__icon"
+                    aria-hidden="true"
+                  >
                     psychology
                   </span>
-                  <h2 className="vision-result__title" id="vision-result-title">
+
+                  <h2
+                    className="vision-result__title"
+                    id="vision-result-title"
+                  >
                     VisionX Result
                   </h2>
                 </div>
-                {hasSampleInsight && (
-                  <span className="sample-badge" aria-label="Sample demonstration result">
-                    <span className="sample-badge__dot" aria-hidden="true" />
-                    Sample Result
+
+                {isAnalyzing && (
+                  <span
+                    className="sample-badge"
+                    aria-label="VisionX is processing"
+                  >
+                    <span
+                      className="sample-badge__dot"
+                      aria-hidden="true"
+                    />
+                    Processing
                   </span>
                 )}
               </div>
 
-              {/* BACKEND REQUIRED: Send captured image/frame to AI vision model for analysis. */}
-              {/* BACKEND REQUIRED: Receive and display structured accessibility-friendly vision results. */}
-              {hasSampleInsight ? (
-                <div className="vision-result__content" role="region" aria-live="polite">
-                  <div className="vision-result__demo-alert" role="note">
-                    <span className="material-symbols-outlined" aria-hidden="true">
+              {analysisError ? (
+                <div
+                  className="vision-result__empty"
+                  role="alert"
+                >
+                  <span
+                    className="material-symbols-outlined vision-result__empty-icon"
+                    aria-hidden="true"
+                  >
+                    error_outline
+                  </span>
+
+                  <p className="vision-result__empty-text">
+                    {analysisError}
+                  </p>
+                </div>
+              ) : assistantMessage ? (
+                <div
+                  className="vision-result__content"
+                  role="region"
+                  aria-live="polite"
+                >
+                  <div className="vision-result__demo-alert">
+                    <span
+                      className="material-symbols-outlined"
+                      aria-hidden="true"
+                    >
                       auto_awesome
                     </span>
+
                     <p className="vision-result__main-desc">
-                      "VisionX can identify objects, describe the surrounding environment, and provide useful spatial information."
+                      {assistantMessage}
                     </p>
                   </div>
 
-                  <div className="vision-result__breakdown">
-                    <h3 className="vision-result__breakdown-title">
-                      Sample Breakdown Preview
-                    </h3>
-
-                    <div className="vision-result__items">
-                      <div className="result-item">
-                        <div className="result-item__icon-wrap" aria-hidden="true">
-                          <span className="material-symbols-outlined">view_in_ar</span>
-                        </div>
-                        <div className="result-item__text">
-                          <strong className="result-item__label">Identified Objects</strong>
-                          <span className="result-item__val">Clear pedestrian pathway, doorway (2.4m ahead)</span>
-                        </div>
-                      </div>
+                  {assistantAudioUrl && (
+                    <div className="vision-result__breakdown">
+                      <h3 className="vision-result__breakdown-title">
+                        Assistant Response
+                      </h3>
 
                       <div className="result-item">
-                        <div className="result-item__icon-wrap" aria-hidden="true">
-                          <span className="material-symbols-outlined">spatial_audio</span>
+                        <div
+                          className="result-item__icon-wrap"
+                          aria-hidden="true"
+                        >
+                          <span className="material-symbols-outlined">
+                            volume_up
+                          </span>
                         </div>
-                        <div className="result-item__text">
-                          <strong className="result-item__label">Spatial Context</strong>
-                          <span className="result-item__val">Level ground, no immediate floor hazards detected</span>
-                        </div>
-                      </div>
 
-                      <div className="result-item">
-                        <div className="result-item__icon-wrap" aria-hidden="true">
-                          <span className="material-symbols-outlined">translate</span>
-                        </div>
                         <div className="result-item__text">
-                          <strong className="result-item__label">Text in Environment</strong>
-                          <span className="result-item__val">"Building Entrance — Push to Open"</span>
+                          <strong className="result-item__label">
+                            Spoken Response
+                          </strong>
+
+                          <span className="result-item__val">
+                            VisionX has generated an
+                            accessibility-focused spoken response.
+                          </span>
                         </div>
                       </div>
                     </div>
-                  </div>
+                  )}
 
                   <div className="vision-result__disclaimer">
-                    <span className="material-symbols-outlined" aria-hidden="true">
-                      help_outline
+                    <span
+                      className="material-symbols-outlined"
+                      aria-hidden="true"
+                    >
+                      info
                     </span>
+
                     <span>
-                      This sample showcases the structure and clarity of real-time insights delivered once connected to the vision AI engine.
+                      Results are generated from the current image
+                      and spoken question. Distance values are
+                      estimates.
                     </span>
                   </div>
                 </div>
               ) : (
-                <div className="vision-result__empty" role="status">
-                  <span className="material-symbols-outlined vision-result__empty-icon" aria-hidden="true">
+                <div
+                  className="vision-result__empty"
+                  role="status"
+                >
+                  <span
+                    className="material-symbols-outlined vision-result__empty-icon"
+                    aria-hidden="true"
+                  >
                     visibility_off
                   </span>
+
                   <p className="vision-result__empty-text">
                     Your visual insight will appear here.
                   </p>

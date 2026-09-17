@@ -185,7 +185,6 @@ function StateLabel({ voiceState }) {
    Camera Context Panel
    ============================================================ */
 function CameraPanel({ cameraState, videoRef, onEnable, onDisable, cameraError }) {
-  const isInactive   = cameraState === CAMERA_STATE.INACTIVE
   const isRequesting = cameraState === CAMERA_STATE.REQUESTING
   const isActive     = cameraState === CAMERA_STATE.ACTIVE
   const isError      = cameraState === CAMERA_STATE.ERROR
@@ -395,7 +394,7 @@ function ProcessingSkeleton({ cameraState }) {
 /* ============================================================
    Main Component
    ============================================================ */
-export default function HandsFreeAssistPage({ onBack: _onBack }) {
+export default function HandsFreeAssistPage() {
   /* ── Voice state ─────────────────────────────────────── */
   const [voiceState, setVoiceState] = useState(VOICE_STATE.READY)
   const [micError,   setMicError]   = useState(null)

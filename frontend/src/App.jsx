@@ -3,7 +3,7 @@
  * Landing Page, Assistance Mode Selector & Vision Assist Router
  */
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import './App.css'
 import heroImg from './assets/hero.png'
 import VisionAssistPage from './pages/VisionAssistPage.jsx'
@@ -635,12 +635,12 @@ function AssistanceCard({
 }
 
 function ChooseAssistPage({ selectedMode, onSelectMode, onStartAssist }) {
-  const handleCardClick = (modeId) => {
+  const handleCardClick = useCallback((modeId) => {
     onSelectMode(modeId)
     if (onStartAssist) {
       onStartAssist(modeId)
     }
-  }
+  }, [onSelectMode, onStartAssist])
 
   // Quick-Launch Keyboard Shortcuts (1 -> Vision, 2 -> Hearing, 3 -> Hands-Free)
   useEffect(() => {
@@ -677,7 +677,7 @@ function ChooseAssistPage({ selectedMode, onSelectMode, onStartAssist }) {
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [onSelectMode, onStartAssist])
+  }, [handleCardClick])
 
   return (
     <main className="main choose-assist" id="main-content">
