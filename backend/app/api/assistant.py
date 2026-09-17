@@ -2,21 +2,28 @@ from pathlib import Path
 from tempfile import NamedTemporaryFile
 
 from PIL import Image
-from fastapi import APIRouter, File, UploadFile
+from fastapi import APIRouter, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse
+from starlette.background import BackgroundTask
 
 from app.database.repositories.memory_repository import get_memories
+from app.services.depth_service import depth_service
 from app.services.llm_service import llm_service
 from app.services.spatial_service import spatial_service
 from app.services.stt_service import stt_service
 from app.services.tts_service import tts_service
 from app.services.vision_service import vision_service
-from app.services.depth_service import depth_service
+
 
 router = APIRouter(
     prefix="/api/assistant",
     tags=["Assistant"],
 )
+
+
+def cleanup_file(path: str | None) -> None:
+    if path:
+        Path(path).unlink(missing_ok=True)
 
 
 @router.post("/analyze")
@@ -26,6 +33,10 @@ async def analyze(
 ):
     audio_suffix = Path(audio.filename or "").suffix or ".wav"
     image_suffix = Path(image.filename or "").suffix or ".jpg"
+
+    audio_path = None
+    image_path = None
+    output_path = None
 
     with NamedTemporaryFile(
         delete=False,
@@ -41,8 +52,6 @@ async def analyze(
         image_file.write(await image.read())
         image_path = image_file.name
 
-    output_path = None
-
     try:
         # 1. Speech-to-text
         transcription = stt_service.transcribe(audio_path)
@@ -52,6 +61,7 @@ async def analyze(
 
         # 3. Spatial reasoning
         image_width = Image.open(image_path).width
+
         for detection in detections:
             detection["horizontal"] = (
                 spatial_service.get_horizontal_position(
@@ -91,14 +101,26 @@ async def analyze(
             output_path,
         )
 
-        # Return the generated speech audio.
         return FileResponse(
             output_path,
             media_type="audio/wav",
             filename="assistant_response.wav",
-            background=None,
+            background=BackgroundTask(
+                cleanup_file,
+                output_path,
+            ),
         )
 
+    except Exception as exc:
+        cleanup_file(audio_path)
+        cleanup_file(image_path)
+        cleanup_file(output_path)
+
+        raise HTTPException(
+            status_code=500,
+            detail="Assistant processing failed. Please try again.",
+        ) from exc
+
     finally:
-        Path(audio_path).unlink(missing_ok=True)
-        Path(image_path).unlink(missing_ok=True)
+        cleanup_file(audio_path)
+        cleanup_file(image_path)
